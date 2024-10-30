@@ -88,7 +88,7 @@ function updateTime() {
       this._speed = 0;
       this._radialEffect = 0;
       this._elasticity = 0.01;
-      this._friction = 0.045;
+      this._friction = 0.035;
     }
 
     solveWith(leftPoint, rightPoint) {
