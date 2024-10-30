@@ -6,6 +6,10 @@ class PostItNote {
       x: this.getRandomPosition(window.innerWidth - 200),
       y: this.getRandomPosition(window.innerHeight - 200)
     };
+    this.size = {
+      width: 200,
+      height: 200
+    };
   }
 
   getRandomPosition(max) {
@@ -41,6 +45,8 @@ class PostItManager {
     postIt.id = `note-${note.id}`;
     postIt.style.left = `${note.position.x}px`;
     postIt.style.top = `${note.position.y}px`;
+    postIt.style.width = `${note.size.width}px`;
+    postIt.style.height = `${note.size.height}px`;
 
     postIt.innerHTML = `
       <div class="post-it-header">
@@ -52,10 +58,12 @@ class PostItManager {
         </button>
       </div>
       <textarea class="post-it-content" placeholder="Write your note...">${note.content}</textarea>
+      <div class="resize-handle"></div>
     `;
 
     document.body.appendChild(postIt);
     this.makeNoteDraggable(postIt);
+    this.makeNoteResizable(postIt);
     this.setupNoteEvents(postIt, note);
   }
 
@@ -148,6 +156,55 @@ class PostItManager {
     const savedNotes = localStorage.getItem('postItNotes');
     this.notes = savedNotes ? JSON.parse(savedNotes) : [];
     this.notes.forEach(note => this.renderNote(note));
+  }
+
+  makeNoteResizable(noteElement) {
+    const resizeHandle = noteElement.querySelector('.resize-handle');
+    let isResizing = false;
+    let originalWidth;
+    let originalHeight;
+    let originalX;
+    let originalY;
+
+    resizeHandle.addEventListener('mousedown', (e) => {
+      isResizing = true;
+      originalWidth = noteElement.offsetWidth;
+      originalHeight = noteElement.offsetHeight;
+      originalX = e.clientX;
+      originalY = e.clientY;
+      
+      e.preventDefault();
+      e.stopPropagation();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isResizing) return;
+
+      const width = originalWidth + (e.clientX - originalX);
+      const height = originalHeight + (e.clientY - originalY);
+
+      // Minimum size constraints
+      const newWidth = Math.max(150, width);
+      const newHeight = Math.max(150, height);
+
+      noteElement.style.width = `${newWidth}px`;
+      noteElement.style.height = `${newHeight}px`;
+
+      // Update note size in storage
+      const noteId = parseInt(noteElement.id.replace('note-', ''));
+      const note = this.notes.find(n => n.id === noteId);
+      if (note) {
+        note.size = {
+          width: newWidth,
+          height: newHeight
+        };
+        this.saveNotes();
+      }
+    });
+
+    document.addEventListener('mouseup', () => {
+      isResizing = false;
+    });
   }
 }
 

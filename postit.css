@@ -24,8 +24,10 @@
 
 .post-it {
   position: absolute;
-  width: 200px;
-  min-height: 200px;
+  min-width: 150px;
+  min-height: 150px;
+  resize: both;
+  overflow: auto;
   background: rgba(235, 203, 139, 0.9);
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -74,4 +76,14 @@
 
 .post-it-content:focus {
   outline: none;
-} 
+}
+
+.post-it .resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 15px;
+  height: 15px;
+  cursor: se-resize;
+  background: linear-gradient(135deg, transparent 50%, #0000001a 50%);
+}
