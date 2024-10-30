@@ -21,16 +21,50 @@ class PostItNote {
 class PostItManager {
   constructor() {
     this.notes = [];
+    this.currentNoteIndex = -1;
     this.loadNotes();
     this.bindEventListeners();
   }
 
   bindEventListeners() {
-    const createBtn = document.getElementById('createPostIt');
-    if (createBtn) {
-      createBtn.addEventListener('click', () => this.createNewNote());
-    }
+    document.addEventListener('keydown', (e) => {
+      if (e.altKey) {
+        if (e.key.toLowerCase() === 'a') {
+          e.preventDefault();
+          this.createNewNote();
+        } else if (e.key.toLowerCase() === 's') {
+          e.preventDefault();
+          this.selectNextNote();
+        } else if (e.key.toLowerCase() === 'd') {
+          e.preventDefault();
+          this.deleteSelectedNote();
+        }
+      }
+    });
     window.addEventListener('resize', () => this.adjustNotesPosition());
+  }
+
+  selectNextNote() {
+    if (this.notes.length === 0) return;
+    
+    // Remove focus from current note if any
+    if (this.currentNoteIndex >= 0) {
+      const currentNote = document.getElementById(`note-${this.notes[this.currentNoteIndex].id}`);
+      if (currentNote) {
+        currentNote.classList.remove('selected');
+      }
+    }
+
+    // Move to next note or back to start
+    this.currentNoteIndex = (this.currentNoteIndex + 1) % this.notes.length;
+    
+    // Focus on new note
+    const nextNote = document.getElementById(`note-${this.notes[this.currentNoteIndex].id}`);
+    if (nextNote) {
+      nextNote.classList.add('selected');
+      const contentDiv = nextNote.querySelector('.post-it-content');
+      contentDiv.focus();
+    }
   }
 
   createNewNote() {
@@ -72,6 +106,9 @@ class PostItManager {
     this.makeNoteDraggable(postIt);
     this.makeNoteResizable(postIt);
     this.setupNoteEvents(postIt, note);
+
+    // Add tabindex to make note focusable
+    postIt.setAttribute('tabindex', '-1');
   }
 
   makeNoteDraggable(noteElement) {
@@ -126,6 +163,13 @@ class PostItManager {
   setupNoteEvents(noteElement, note) {
     const contentDiv = noteElement.querySelector('.post-it-content');
     const deleteBtn = noteElement.querySelector('.delete-note');
+
+    // Handle shift+enter for new lines
+    contentDiv.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault(); // Prevent default enter behavior
+      }
+    });
 
     // Auto-save on content change
     contentDiv.addEventListener('input', () => {
@@ -218,6 +262,31 @@ class PostItManager {
     document.addEventListener('mouseup', () => {
       isResizing = false;
     });
+  }
+
+  deleteSelectedNote() {
+    if (this.currentNoteIndex < 0 || this.notes.length === 0) return;
+
+    const noteToDelete = this.notes[this.currentNoteIndex];
+    const noteElement = document.getElementById(`note-${noteToDelete.id}`);
+    
+    if (noteElement) {
+      noteElement.remove();
+      this.notes = this.notes.filter(n => n.id !== noteToDelete.id);
+      this.saveNotes();
+      
+      // Reset selection index if we deleted the last note
+      if (this.currentNoteIndex >= this.notes.length) {
+        this.currentNoteIndex = this.notes.length - 1;
+      }
+      
+      // If there are remaining notes, select the next one
+      if (this.notes.length > 0) {
+        this.selectNextNote();
+      } else {
+        this.currentNoteIndex = -1;
+      }
+    }
   }
 }
 

@@ -98,6 +98,8 @@ function updateTime() {
       new SystemMonitor();
       memoryInfo.closest('.info-card')?.classList.add('expanded');
     }
+
+    new ShortcutsMenu();
   }, { once: true });
 
   document.querySelectorAll('.info-card').forEach(card => {
