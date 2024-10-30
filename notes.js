@@ -2,6 +2,7 @@ class PostItNote {
   constructor(id, content, position) {
     this.id = id;
     this.content = content || '';
+    this.fontSize = '16px';
     this.position = position || {
       x: this.getRandomPosition(window.innerWidth - 200),
       y: this.getRandomPosition(window.innerHeight - 200)
@@ -57,11 +58,17 @@ class PostItManager {
           <i class="fas fa-times"></i>
         </button>
       </div>
-      <textarea class="post-it-content" placeholder="Write your note...">${note.content}</textarea>
+      <div class="post-it-content" contenteditable="true" placeholder="Write your note...">${note.content}</div>
       <div class="resize-handle"></div>
     `;
 
     document.body.appendChild(postIt);
+    
+    // Initialize text formatter
+    const contentDiv = postIt.querySelector('.post-it-content');
+    contentDiv.style.fontSize = note.fontSize;
+    const formatter = new TextFormatter(contentDiv);
+
     this.makeNoteDraggable(postIt);
     this.makeNoteResizable(postIt);
     this.setupNoteEvents(postIt, note);
@@ -117,12 +124,18 @@ class PostItManager {
   }
 
   setupNoteEvents(noteElement, note) {
-    const textarea = noteElement.querySelector('.post-it-content');
+    const contentDiv = noteElement.querySelector('.post-it-content');
     const deleteBtn = noteElement.querySelector('.delete-note');
 
     // Auto-save on content change
-    textarea.addEventListener('input', () => {
-      note.content = textarea.value;
+    contentDiv.addEventListener('input', () => {
+      note.content = contentDiv.innerHTML;
+      this.saveNotes();
+    });
+
+    // Save font size changes
+    contentDiv.addEventListener('fontSizeChanged', () => {
+      note.fontSize = contentDiv.style.fontSize;
       this.saveNotes();
     });
 

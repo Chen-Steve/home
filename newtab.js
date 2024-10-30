@@ -96,6 +96,7 @@ function updateTime() {
 
     if (memoryInfo) {
       new SystemMonitor();
+      memoryInfo.closest('.info-card')?.classList.add('expanded');
     }
   }, { once: true });
 

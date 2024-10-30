@@ -63,23 +63,32 @@
 }
 
 .post-it-content {
-  flex: 1;
   padding: 10px;
-  background: none;
-  border: none;
-  resize: none;
-  overflow: hidden;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.9rem;
-  color: #2e3440;
-  min-height: 150px;
-  width: calc(100% - 20px);
+  white-space: pre-wrap;
+  overflow-y: auto;
   height: calc(100% - 40px);
-  box-sizing: border-box;
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
 }
 
-.post-it-content:focus {
-  outline: none;
+.post-it-content[placeholder]:empty:before {
+  content: attr(placeholder);
+  color: #999;
+}
+
+.post-it-content strong {
+  font-weight: bold;
+}
+
+.post-it-content em {
+  font-style: italic;
+}
+
+.post-it-content u {
+  text-decoration: underline;
 }
 
 .post-it .resize-handle {
@@ -90,4 +99,8 @@
   height: 15px;
   cursor: se-resize;
   background: linear-gradient(135deg, transparent 50%, #0000001a 50%);
+}
+
+.post-it textarea {
+  height: calc(100% - 40px);
 }
