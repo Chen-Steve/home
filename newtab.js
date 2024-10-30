@@ -54,12 +54,13 @@ function updateTime() {
         if (this.memoryInfo) {
           this.memoryInfo.innerHTML = `
             <div class="metric">
-              <span>Used:&nbsp;</span>
-              <span>${this.formatBytes(usedMemory)}/${this.formatBytes(capacity)}</span>
+              <span>Used: ${this.formatBytes(usedMemory)}</span>
             </div>
             <div class="metric">
-              <span>Usage:&nbsp;</span>
-              <span>${usagePercentage}%</span>
+              <span>Total: ${this.formatBytes(capacity)}</span>
+            </div>
+            <div class="metric">
+              <span>Usage: ${usagePercentage}%</span>
             </div>
             ${this.createProgressBar(usagePercentage)}
           `;
