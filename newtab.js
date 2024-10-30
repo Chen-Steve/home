@@ -18,10 +18,7 @@ function updateTime() {
   
   class SystemMonitor {
     constructor() {
-      this.memoryInfo = document.getElementById('memoryInfo');
-      this.cpuInfo = document.getElementById('cpuInfo');
-      this.storageInfo = document.getElementById('storageInfo');
-      
+      this.memoryInfo = document.querySelector('#memoryInfo');
       this.initializeMonitoring();
     }
   
@@ -49,103 +46,168 @@ function updateTime() {
         const usagePercentage = (usedMemory / capacity * 100).toFixed(1);
   
         this.memoryInfo.innerHTML = `
-          <i class="fas fa-memory"></i>
-          <h3>Memory</h3>
           <div class="metric">
-            <span>Used:</span>
-            <span>${this.formatBytes(usedMemory)}</span>
+            <span>Used:&nbsp;</span>
+            <span>${this.formatBytes(usedMemory)}/${this.formatBytes(capacity)}</span>
           </div>
           <div class="metric">
-            <span>Total:</span>
-            <span>${this.formatBytes(capacity)}</span>
-          </div>
-          <div class="metric">
-            <span>Usage:</span>
+            <span>Usage:&nbsp;</span>
             <span>${usagePercentage}%</span>
           </div>
           ${this.createProgressBar(usagePercentage)}
-        `;
-      });
-    }
-  
-    updateCPUInfo() {
-      chrome.system.cpu.getInfo(info => {
-        const cpuUsage = info.processors.reduce((acc, processor) => {
-          return acc + processor.usage.user;
-        }, 0) / info.processors.length;
-  
-        const usagePercentage = (cpuUsage / 100).toFixed(1);
-  
-        this.cpuInfo.innerHTML = `
-          <i class="fas fa-microchip"></i>
-          <h3>CPU</h3>
-          <div class="metric">
-            <span>Processors:</span>
-            <span>${info.numOfProcessors}</span>
-          </div>
-          <div class="metric">
-            <span>Architecture:</span>
-            <span>${info.archName}</span>
-          </div>
-          <div class="metric">
-            <span>Usage:</span>
-            <span>${usagePercentage}%</span>
-          </div>
-          ${this.createProgressBar(usagePercentage)}
-        `;
-      });
-    }
-  
-    updateStorageInfo() {
-      chrome.system.storage.getInfo(info => {
-        const drives = info.filter(drive => drive.capacity > 0);
-        
-        this.storageInfo.innerHTML = `
-          <i class="fas fa-hdd"></i>
-          <h3>Storage</h3>
-          ${drives.map(drive => {
-            const usagePercentage = ((drive.capacity - drive.available) / drive.capacity * 100).toFixed(1);
-            return `
-              <div class="metric">
-                <span>${drive.name || 'Local Storage'}:</span>
-              </div>
-              <div class="metric">
-                <span>Free:</span>
-                <span>${this.formatBytes(drive.available)}</span>
-              </div>
-              <div class="metric">
-                <span>Total:</span>
-                <span>${this.formatBytes(drive.capacity)}</span>
-              </div>
-              <div class="metric">
-                <span>Usage:</span>
-                <span>${usagePercentage}%</span>
-              </div>
-              ${this.createProgressBar(usagePercentage)}
-            `;
-          }).join('<hr style="margin: 10px 0; border: none; border-top: 1px solid #eee;">')}
         `;
       });
     }
   
     initializeMonitoring() {
-      // Initial updates
-      this.updateMemoryInfo();
-      this.updateCPUInfo();
-      this.updateStorageInfo();
-  
-      // Regular updates
-      setInterval(() => {
+      const update = () => {
         this.updateMemoryInfo();
-        this.updateCPUInfo();
-        this.updateStorageInfo();
-      }, 2000); // Update every 2 seconds
+        setTimeout(() => requestAnimationFrame(update), 5000);
+      };
+      update();
+    }
+  }
+  
+  class LavaLamp {
+    constructor() {
+      this.canvas = document.getElementById('background');
+      this.ctx = this.canvas.getContext('2d');
+      this.blobs = [];
+      this.resize();
+      this.init();
+      
+      window.addEventListener('resize', () => this.resize());
+    }
+
+    resize() {
+      this.canvas.width = window.innerWidth;
+      this.canvas.height = window.innerHeight;
+    }
+
+    init() {
+      // Create 3-4 blobs
+      for (let i = 0; i < 4; i++) {
+        this.blobs.push({
+          x: Math.random() * this.canvas.width,
+          y: Math.random() * this.canvas.height,
+          radius: 100 + Math.random() * 100,
+          xSpeed: Math.random() * 2 - 1,
+          ySpeed: Math.random() * 2 - 1,
+          hue: 200 + Math.random() * 20,  // Blue-ish hue
+          points: this.generateBlobPoints(),
+          angleOffsets: Array(8).fill(0).map(() => Math.random() * Math.PI * 2),
+          angleSpeeds: Array(8).fill(0).map(() => (Math.random() - 0.5) * 0.02)
+        });
+      }
+      this.animate();
+    }
+
+    generateBlobPoints() {
+      return Array(8).fill(0).map(() => ({
+        radius: 0.8 + Math.random() * 0.4,  // Random radius between 0.8 and 1.2
+        angle: 0
+      }));
+    }
+
+    drawBlob(blob) {
+      this.ctx.beginPath();
+      
+      // Update point angles
+      blob.points.forEach((point, i) => {
+        blob.angleOffsets[i] += blob.angleSpeeds[i];
+        point.angle = (i / blob.points.length) * Math.PI * 2 + blob.angleOffsets[i];
+      });
+
+      // Calculate points around the blob
+      const points = blob.points.map(point => ({
+        x: blob.x + Math.cos(point.angle) * blob.radius * point.radius,
+        y: blob.y + Math.sin(point.angle) * blob.radius * point.radius
+      }));
+
+      // Start the path
+      this.ctx.moveTo(points[0].x, points[0].y);
+
+      // Draw curves between points
+      points.forEach((point, i) => {
+        const nextPoint = points[(i + 1) % points.length];
+        const controlPoint1 = {
+          x: point.x + (nextPoint.x - points[(i - 1 + points.length) % points.length].x) * 0.25,
+          y: point.y + (nextPoint.y - points[(i - 1 + points.length) % points.length].y) * 0.25
+        };
+        const controlPoint2 = {
+          x: nextPoint.x - (points[(i + 2) % points.length].x - point.x) * 0.25,
+          y: nextPoint.y - (points[(i + 2) % points.length].y - point.y) * 0.25
+        };
+        this.ctx.bezierCurveTo(
+          controlPoint1.x, controlPoint1.y,
+          controlPoint2.x, controlPoint2.y,
+          nextPoint.x, nextPoint.y
+        );
+      });
+
+      this.ctx.fillStyle = `hsla(${blob.hue}, 70%, 60%, 0.1)`;
+      this.ctx.fill();
+    }
+
+    updateBlob(blob) {
+      // Move blob
+      blob.x += blob.xSpeed;
+      blob.y += blob.ySpeed;
+
+      // Bounce off walls
+      if (blob.x < 0 || blob.x > this.canvas.width) blob.xSpeed *= -1;
+      if (blob.y < 0 || blob.y > this.canvas.height) blob.ySpeed *= -1;
+
+      // Slowly change speed
+      blob.xSpeed += (Math.random() - 0.5) * 0.1;
+      blob.ySpeed += (Math.random() - 0.5) * 0.1;
+
+      // Limit speed
+      blob.xSpeed = Math.max(Math.min(blob.xSpeed, 2), -2);
+      blob.ySpeed = Math.max(Math.min(blob.ySpeed, 2), -2);
+    }
+
+    animate() {
+      // Clear canvas with slight fade effect
+      this.ctx.fillStyle = 'rgba(46, 52, 64, 0.1)';
+      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+      // Update and draw blobs
+      this.blobs.forEach(blob => {
+        this.updateBlob(blob);
+        this.drawBlob(blob);
+      });
+
+      requestAnimationFrame(() => this.animate());
     }
   }
   
   document.addEventListener('DOMContentLoaded', () => {
-    setInterval(updateTime, 1000);
-    updateTime();
-    updateGreeting();
+    const timeElement = document.getElementById('time');
+    const updateTimeAndGreeting = () => {
+      const now = new Date();
+      timeElement.textContent = now.toLocaleTimeString();
+      if (!updateTimeAndGreeting.lastHour || updateTimeAndGreeting.lastHour !== now.getHours()) {
+        updateGreeting();
+        updateTimeAndGreeting.lastHour = now.getHours();
+      }
+      requestAnimationFrame(() => setTimeout(updateTimeAndGreeting, 1000));
+    };
+    updateTimeAndGreeting();
     new SystemMonitor();
+    new LavaLamp();
+  }, { once: true });
+
+  document.querySelectorAll('.info-card').forEach(card => {
+    card.addEventListener('click', function() {
+      // Toggle the expanded class on the clicked card
+      this.classList.toggle('expanded');
+      
+      // Close other cards
+      document.querySelectorAll('.info-card').forEach(otherCard => {
+        if (otherCard !== this) {
+          otherCard.classList.remove('expanded');
+        }
+      });
+    });
   });

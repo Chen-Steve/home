@@ -6,17 +6,17 @@
   <title>My New Tab</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 </head>
 <body>
   <div class="system-info">
     <div class="info-card">
-      <div id="memoryInfo"></div>
-    </div>
-    <div class="info-card">
-      <div id="cpuInfo"></div>
-    </div>
-    <div class="info-card">
-      <div id="storageInfo"></div>
+      <div class="card-header">
+        <i class="fas fa-microchip"></i>
+      </div>
+      <div class="card-content">
+        <div id="memoryInfo"></div>
+      </div>
     </div>
   </div>
   <div class="container">
@@ -24,6 +24,7 @@
     <h2 id="greeting">Hello!</h2>
     <div id="quickLinks"></div>
   </div>
-  <script src="newtab.js"></script>
+  <canvas id="background"></canvas>
+  <script src="newtab.js" defer></script>
 </body>
 </html> 
