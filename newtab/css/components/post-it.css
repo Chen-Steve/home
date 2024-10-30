@@ -34,6 +34,11 @@
   display: flex;
   flex-direction: column;
   z-index: 1000;
+  transition: left 0.2s ease, top 0.2s ease;
+}
+
+.post-it.moving {
+  transition: none;
 }
 
 /* Post-it Header */
@@ -75,6 +80,35 @@
   font-family: inherit;
   font-size: inherit;
   color: inherit;
+  
+  /* Custom Scrollbar - Webkit (Chrome, Safari, newer Edge) */
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    transition: background 0.2s ease;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.3);
+  }
+
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) rgba(0, 0, 0, 0.05);
+}
+
+/* For Firefox - when scrollbar thumb is being clicked */
+.post-it-content:active {
+  scrollbar-color: rgba(0, 0, 0, 0.3) rgba(0, 0, 0, 0.05);
 }
 
 .post-it-content[placeholder]:empty:before {

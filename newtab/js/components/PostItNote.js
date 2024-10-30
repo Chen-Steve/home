@@ -24,6 +24,9 @@ class PostItNote {
       this.notes = [];
       this.currentNoteIndex = -1;
       this.loadNotes();
+      this.moveStep = 5; // Reduced step size for smoother movement
+      this.moveInterval = null;
+      this.activeKeys = new Set();
       this.bindEventListeners();
     }
   
@@ -41,7 +44,24 @@ class PostItNote {
             this.deleteSelectedNote();
           }
         }
+  
+        // Handle arrow key movement
+        if (this.currentNoteIndex >= 0 && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+          e.preventDefault();
+          this.activeKeys.add(e.key);
+          this.startMoving();
+        }
       });
+
+      document.addEventListener('keyup', (e) => {
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+          this.activeKeys.delete(e.key);
+          if (this.activeKeys.size === 0) {
+            this.stopMoving();
+          }
+        }
+      });
+
       window.addEventListener('resize', () => this.adjustNotesPosition());
     }
   
@@ -288,6 +308,65 @@ class PostItNote {
           this.currentNoteIndex = -1;
         }
       }
+    }
+  
+    startMoving() {
+      if (this.moveInterval) return;
+      
+      const noteElement = this.getCurrentNoteElement();
+      if (noteElement) {
+        noteElement.classList.add('moving');
+      }
+
+      this.moveInterval = setInterval(() => {
+        this.activeKeys.forEach(key => this.moveSelectedNote(key));
+      }, 16); // ~60fps
+    }
+
+    stopMoving() {
+      if (this.moveInterval) {
+        clearInterval(this.moveInterval);
+        this.moveInterval = null;
+
+        const noteElement = this.getCurrentNoteElement();
+        if (noteElement) {
+          noteElement.classList.remove('moving');
+          this.saveNotes(); // Save position only when movement stops
+        }
+      }
+    }
+
+    getCurrentNoteElement() {
+      if (this.currentNoteIndex < 0) return null;
+      const note = this.notes[this.currentNoteIndex];
+      return document.getElementById(`note-${note.id}`);
+    }
+
+    moveSelectedNote(direction) {
+      if (this.currentNoteIndex < 0) return;
+
+      const note = this.notes[this.currentNoteIndex];
+      const noteElement = document.getElementById(`note-${note.id}`);
+      
+      if (!noteElement) return;
+
+      switch (direction) {
+        case 'ArrowUp':
+          note.position.y = Math.max(0, note.position.y - this.moveStep);
+          break;
+        case 'ArrowDown':
+          note.position.y = Math.min(window.innerHeight - note.size.height, note.position.y + this.moveStep);
+          break;
+        case 'ArrowLeft':
+          note.position.x = Math.max(0, note.position.x - this.moveStep);
+          break;
+        case 'ArrowRight':
+          note.position.x = Math.min(window.innerWidth - note.size.width, note.position.x + this.moveStep);
+          break;
+      }
+
+      noteElement.style.left = `${note.position.x}px`;
+      noteElement.style.top = `${note.position.y}px`;
     }
   }
   
