@@ -39,23 +39,31 @@ function updateTime() {
     }
   
     updateMemoryInfo() {
+      if (!chrome?.system?.memory) {
+        this.memoryInfo.innerHTML = '<div class="metric">Memory info not available</div>';
+        return;
+      }
+
       chrome.system.memory.getInfo(info => {
+        if (!info) return;
         const availableCapacity = info.availableCapacity;
         const capacity = info.capacity;
         const usedMemory = capacity - availableCapacity;
         const usagePercentage = (usedMemory / capacity * 100).toFixed(1);
   
-        this.memoryInfo.innerHTML = `
-          <div class="metric">
-            <span>Used:&nbsp;</span>
-            <span>${this.formatBytes(usedMemory)}/${this.formatBytes(capacity)}</span>
-          </div>
-          <div class="metric">
-            <span>Usage:&nbsp;</span>
-            <span>${usagePercentage}%</span>
-          </div>
-          ${this.createProgressBar(usagePercentage)}
-        `;
+        if (this.memoryInfo) {
+          this.memoryInfo.innerHTML = `
+            <div class="metric">
+              <span>Used:&nbsp;</span>
+              <span>${this.formatBytes(usedMemory)}/${this.formatBytes(capacity)}</span>
+            </div>
+            <div class="metric">
+              <span>Usage:&nbsp;</span>
+              <span>${usagePercentage}%</span>
+            </div>
+            ${this.createProgressBar(usagePercentage)}
+          `;
+        }
       });
     }
   
@@ -68,15 +76,156 @@ function updateTime() {
     }
   }
   
-  class LavaLamp {
+  class Point {
+    constructor(azimuth, parent) {
+      this.parent = parent;
+      this.azimuth = Math.PI - azimuth;
+      this._components = { 
+        x: Math.cos(this.azimuth),
+        y: Math.sin(this.azimuth)
+      };
+      this._acceleration = -0.01 + Math.random() * 0.02;
+      this._speed = 0;
+      this._radialEffect = 0;
+      this._elasticity = 0.01;
+      this._friction = 0.045;
+    }
+
+    solveWith(leftPoint, rightPoint) {
+      this.acceleration = (
+        -0.03 * this.radialEffect +
+        (leftPoint.radialEffect - this.radialEffect) * 0.9 +
+        (rightPoint.radialEffect - this.radialEffect) * 0.9
+      ) * this.elasticity - this.speed * this.friction;
+    }
+
+    get position() {
+      return { 
+        x: this.parent.center.x + this.components.x * (this.parent.radius + this.radialEffect), 
+        y: this.parent.center.y + this.components.y * (this.parent.radius + this.radialEffect) 
+      };
+    }
+
+    set acceleration(value) {
+      if (typeof value === 'number') {
+        this._acceleration = value;
+        this.speed += this._acceleration * 2;
+      }
+    }
+    get acceleration() { return this._acceleration; }
+
+    set speed(value) {
+      if (typeof value === 'number') {
+        this._speed = value;
+        this.radialEffect += this._speed * 3;
+      }
+    }
+    get speed() { return this._speed; }
+
+    set radialEffect(value) {
+      if (typeof value === 'number') {
+        this._radialEffect = value;
+      }
+    }
+    get radialEffect() { return this._radialEffect; }
+
+    get components() { return this._components; }
+    get elasticity() { return this._elasticity; }
+    get friction() { return this._friction; }
+  }
+  
+  class Blob {
     constructor() {
       this.canvas = document.getElementById('background');
       this.ctx = this.canvas.getContext('2d');
-      this.blobs = [];
+      this.points = [];
+      this.numPoints = 48;
+      this.radius = 150;
+      this.position = { x: 0.5, y: 0.5 };
+      this.mousePos = null;
+      this._color = '#000000';
+      
       this.resize();
       this.init();
       
       window.addEventListener('resize', () => this.resize());
+      
+      let oldMousePoint = { x: 0, y: 0 };
+      let hover = false;
+      
+      window.addEventListener('pointermove', (e) => {
+        let pos = this.center;
+        let diff = { x: e.clientX - pos.x, y: e.clientY - pos.y };
+        let dist = Math.sqrt((diff.x * diff.x) + (diff.y * diff.y));
+        let angle = Math.atan2(diff.y, diff.x);
+        
+        this.mousePos = { x: pos.x - e.clientX, y: pos.y - e.clientY };
+        
+        if (dist < this.radius + 100) {
+          this.points.forEach(point => {
+            const angleDiff = Math.abs(angle - point.azimuth);
+            const wrappedDiff = Math.min(angleDiff, Math.PI * 2 - angleDiff);
+            
+            if (wrappedDiff < 0.5) {
+              let strength = { 
+                x: oldMousePoint.x - e.clientX, 
+                y: oldMousePoint.y - e.clientY 
+              };
+              strength = Math.sqrt((strength.x * strength.x) + (strength.y * strength.y)) * 2;
+              if (strength > 25) strength = 25;
+              
+              const effect = (1 - wrappedDiff / 0.5) * (strength / 100) * 0.25;
+              point.acceleration = effect;
+            }
+          });
+        }
+        
+        oldMousePoint.x = e.clientX;
+        oldMousePoint.y = e.clientY;
+      });
+    }
+
+    init() {
+      for (let i = 0; i < this.numPoints; i++) {
+        let point = new Point(this.divisional * (i + 1), this);
+        this.points.push(point);
+      }
+      requestAnimationFrame(() => this.render());
+    }
+
+    render() {
+      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      
+      const points = this.points;
+      points[0].solveWith(points[points.length - 1], points[1]);
+
+      let p0 = points[points.length - 1].position;
+      let p1 = points[0].position;
+      let _p2 = p1;
+
+      this.ctx.beginPath();
+      this.ctx.moveTo(this.center.x, this.center.y);
+      this.ctx.moveTo((p0.x + p1.x) / 2, (p0.y + p1.y) / 2);
+
+      for (let i = 1; i < this.points.length; i++) {
+        points[i].solveWith(points[i - 1], points[i + 1] || points[0]);
+
+        let p2 = points[i].position;
+        let xc = (p1.x + p2.x) / 2;
+        let yc = (p1.y + p2.y) / 2;
+        
+        this.ctx.quadraticCurveTo(p1.x, p1.y, xc, yc);
+        p1 = p2;
+      }
+
+      let xc = (p1.x + _p2.x) / 2;
+      let yc = (p1.y + _p2.y) / 2;
+      this.ctx.quadraticCurveTo(p1.x, p1.y, xc, yc);
+
+      this.ctx.fillStyle = this.color;
+      this.ctx.fill();
+      
+      requestAnimationFrame(() => this.render());
     }
 
     resize() {
@@ -84,118 +233,50 @@ function updateTime() {
       this.canvas.height = window.innerHeight;
     }
 
-    init() {
-      // Create 3-4 blobs
-      for (let i = 0; i < 4; i++) {
-        this.blobs.push({
-          x: Math.random() * this.canvas.width,
-          y: Math.random() * this.canvas.height,
-          radius: 100 + Math.random() * 100,
-          xSpeed: Math.random() * 2 - 1,
-          ySpeed: Math.random() * 2 - 1,
-          hue: 200 + Math.random() * 20,  // Blue-ish hue
-          points: this.generateBlobPoints(),
-          angleOffsets: Array(8).fill(0).map(() => Math.random() * Math.PI * 2),
-          angleSpeeds: Array(8).fill(0).map(() => (Math.random() - 0.5) * 0.02)
-        });
-      }
-      this.animate();
+    get center() {
+      return { 
+        x: this.canvas.width * this.position.x, 
+        y: this.canvas.height * this.position.y 
+      };
     }
 
-    generateBlobPoints() {
-      return Array(8).fill(0).map(() => ({
-        radius: 0.8 + Math.random() * 0.4,  // Random radius between 0.8 and 1.2
-        angle: 0
-      }));
+    get divisional() {
+      return Math.PI * 2 / this.numPoints;
     }
 
-    drawBlob(blob) {
-      this.ctx.beginPath();
-      
-      // Update point angles
-      blob.points.forEach((point, i) => {
-        blob.angleOffsets[i] += blob.angleSpeeds[i];
-        point.angle = (i / blob.points.length) * Math.PI * 2 + blob.angleOffsets[i];
-      });
-
-      // Calculate points around the blob
-      const points = blob.points.map(point => ({
-        x: blob.x + Math.cos(point.angle) * blob.radius * point.radius,
-        y: blob.y + Math.sin(point.angle) * blob.radius * point.radius
-      }));
-
-      // Start the path
-      this.ctx.moveTo(points[0].x, points[0].y);
-
-      // Draw curves between points
-      points.forEach((point, i) => {
-        const nextPoint = points[(i + 1) % points.length];
-        const controlPoint1 = {
-          x: point.x + (nextPoint.x - points[(i - 1 + points.length) % points.length].x) * 0.25,
-          y: point.y + (nextPoint.y - points[(i - 1 + points.length) % points.length].y) * 0.25
-        };
-        const controlPoint2 = {
-          x: nextPoint.x - (points[(i + 2) % points.length].x - point.x) * 0.25,
-          y: nextPoint.y - (points[(i + 2) % points.length].y - point.y) * 0.25
-        };
-        this.ctx.bezierCurveTo(
-          controlPoint1.x, controlPoint1.y,
-          controlPoint2.x, controlPoint2.y,
-          nextPoint.x, nextPoint.y
-        );
-      });
-
-      this.ctx.fillStyle = `hsla(${blob.hue}, 70%, 60%, 0.1)`;
-      this.ctx.fill();
+    get color() {
+      return this._color || '#000000';
     }
-
-    updateBlob(blob) {
-      // Move blob
-      blob.x += blob.xSpeed;
-      blob.y += blob.ySpeed;
-
-      // Bounce off walls
-      if (blob.x < 0 || blob.x > this.canvas.width) blob.xSpeed *= -1;
-      if (blob.y < 0 || blob.y > this.canvas.height) blob.ySpeed *= -1;
-
-      // Slowly change speed
-      blob.xSpeed += (Math.random() - 0.5) * 0.1;
-      blob.ySpeed += (Math.random() - 0.5) * 0.1;
-
-      // Limit speed
-      blob.xSpeed = Math.max(Math.min(blob.xSpeed, 2), -2);
-      blob.ySpeed = Math.max(Math.min(blob.ySpeed, 2), -2);
-    }
-
-    animate() {
-      // Clear canvas with slight fade effect
-      this.ctx.fillStyle = 'rgba(46, 52, 64, 0.1)';
-      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-      // Update and draw blobs
-      this.blobs.forEach(blob => {
-        this.updateBlob(blob);
-        this.drawBlob(blob);
-      });
-
-      requestAnimationFrame(() => this.animate());
+    set color(value) {
+      this._color = value;
     }
   }
   
   document.addEventListener('DOMContentLoaded', () => {
     const timeElement = document.getElementById('time');
-    const updateTimeAndGreeting = () => {
-      const now = new Date();
-      timeElement.textContent = now.toLocaleTimeString();
-      if (!updateTimeAndGreeting.lastHour || updateTimeAndGreeting.lastHour !== now.getHours()) {
-        updateGreeting();
-        updateTimeAndGreeting.lastHour = now.getHours();
-      }
-      requestAnimationFrame(() => setTimeout(updateTimeAndGreeting, 1000));
-    };
-    updateTimeAndGreeting();
-    new SystemMonitor();
-    new LavaLamp();
+    const memoryInfo = document.getElementById('memoryInfo');
+    
+    if (timeElement) {
+      const updateTimeAndGreeting = () => {
+        const now = new Date();
+        timeElement.textContent = now.toLocaleTimeString();
+        if (!updateTimeAndGreeting.lastHour || updateTimeAndGreeting.lastHour !== now.getHours()) {
+          updateGreeting();
+          updateTimeAndGreeting.lastHour = now.getHours();
+        }
+        requestAnimationFrame(() => setTimeout(updateTimeAndGreeting, 1000));
+      };
+      updateTimeAndGreeting();
+    }
+
+    if (memoryInfo) {
+      new SystemMonitor();
+    }
+
+    const canvas = document.getElementById('background');
+    if (canvas) {
+      new Blob();
+    }
   }, { once: true });
 
   document.querySelectorAll('.info-card').forEach(card => {
