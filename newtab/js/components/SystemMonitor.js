@@ -20,6 +20,7 @@ function updateTime() {
     constructor() {
       this.memoryInfo = document.querySelector('#memoryInfo');
       this.initializeMonitoring();
+      this.initializeCardBehavior();
     }
   
     formatBytes(bytes) {
@@ -46,11 +47,12 @@ function updateTime() {
 
       chrome.system.memory.getInfo(info => {
         if (!info) return;
+        
         const availableCapacity = info.availableCapacity;
         const capacity = info.capacity;
         const usedMemory = capacity - availableCapacity;
         const usagePercentage = (usedMemory / capacity * 100).toFixed(1);
-  
+
         if (this.memoryInfo) {
           this.memoryInfo.innerHTML = `
             <div class="metric">
@@ -75,6 +77,29 @@ function updateTime() {
       };
       update();
     }
+
+    initializeCardBehavior() {
+      // Initialize memory card as expanded
+      const memoryCard = this.memoryInfo.closest('.info-card');
+      if (memoryCard) {
+        memoryCard.classList.add('expanded');
+      }
+
+      // Add click handlers for card expansion
+      document.querySelectorAll('.info-card').forEach(card => {
+        card.addEventListener('click', function() {
+          // Toggle the expanded class on the clicked card
+          this.classList.toggle('expanded');
+          
+          // Close other cards
+          document.querySelectorAll('.info-card').forEach(otherCard => {
+            if (otherCard !== this) {
+              otherCard.classList.remove('expanded');
+            }
+          });
+        });
+      });
+    }
   }
   
   document.addEventListener('DOMContentLoaded', () => {
@@ -96,22 +121,7 @@ function updateTime() {
 
     if (memoryInfo) {
       new SystemMonitor();
-      memoryInfo.closest('.info-card')?.classList.add('expanded');
     }
 
     new ShortcutsMenu();
   }, { once: true });
-
-  document.querySelectorAll('.info-card').forEach(card => {
-    card.addEventListener('click', function() {
-      // Toggle the expanded class on the clicked card
-      this.classList.toggle('expanded');
-      
-      // Close other cards
-      document.querySelectorAll('.info-card').forEach(otherCard => {
-        if (otherCard !== this) {
-          otherCard.classList.remove('expanded');
-        }
-      });
-    });
-  });

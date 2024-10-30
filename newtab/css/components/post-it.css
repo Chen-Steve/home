@@ -22,6 +22,7 @@
   color: black;
 }
 
+/* Post-it Note Container */
 .post-it {
   position: absolute;
   min-width: 150px;
@@ -35,6 +36,7 @@
   z-index: 1000;
 }
 
+/* Post-it Header */
 .post-it-header {
   display: flex;
   justify-content: space-between;
@@ -62,6 +64,7 @@
   color: rgba(0, 0, 0, 0.8);
 }
 
+/* Post-it Content */
 .post-it-content {
   padding: 10px;
   white-space: pre-wrap;
@@ -79,6 +82,7 @@
   color: #999;
 }
 
+/* Text Formatting */
 .post-it-content strong {
   font-weight: bold;
 }
@@ -91,6 +95,7 @@
   text-decoration: underline;
 }
 
+/* Resize Handle */
 .post-it .resize-handle {
   position: absolute;
   right: 0;
@@ -101,6 +106,27 @@
   background: linear-gradient(135deg, transparent 50%, #0000001a 50%);
 }
 
+/* Selected State */
+.post-it.selected {
+  box-shadow: 0 0 0 2px #2C3E50;
+}
+
+/* Textarea Height Fix */
 .post-it textarea {
   height: calc(100% - 40px);
+}
+
+/* Mobile Responsiveness */
+@media screen and (max-width: 768px) {
+  .post-it {
+    min-width: 120px;
+    min-height: 120px;
+  }
+  
+  .create-postit {
+    bottom: 20px;
+    right: 20px;
+    width: 35px;
+    height: 35px;
+  }
 }
