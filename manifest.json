@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "My Custom New Tab",
+  "name": "Simple Tab",
   "version": "1.0",
   "description": "A Custom New Tab Extension",
   "chrome_url_overrides": {
