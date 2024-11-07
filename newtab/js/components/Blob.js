@@ -93,8 +93,8 @@ class Blob {
         this.centerX, this.centerY, 0,
         this.centerX, this.centerY, this.radius * 1.5
       );
-      this.gradient.addColorStop(0, 'rgba(44, 62, 80, 0.2)');
-      this.gradient.addColorStop(1, 'rgba(44, 62, 80, 0.1)');
+      this.gradient.addColorStop(0, 'rgba(44, 62, 80, 0.1)');
+      this.gradient.addColorStop(1, 'rgba(44, 62, 80, 0.05)');
     }
     
     this.ctx.fillStyle = this.gradient;

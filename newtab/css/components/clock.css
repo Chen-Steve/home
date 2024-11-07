@@ -3,11 +3,11 @@
   position: fixed;
   right: 20px;
   text-align: right;
-  background: linear-gradient(45deg, #2C3E50, #34495E);
+  background: linear-gradient(45deg, rgba(44, 62, 80, 0.9), rgba(52, 73, 94, 0.9));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
   user-select: none;
   -webkit-user-select: none;
   -moz-user-select: none;

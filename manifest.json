@@ -7,6 +7,7 @@
     "newtab": "newtab/index.html"
   },
   "permissions": [
-    "system.memory"
+    "system.memory",
+    "background"
   ]
 } 
