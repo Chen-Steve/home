@@ -1,20 +1,8 @@
 function updateTime() {
-    const timeElement = document.getElementById('time');
-    const now = new Date();
-    timeElement.textContent = now.toLocaleTimeString();
-  }
-  
-  function updateGreeting() {
-    const greetingElement = document.getElementById('greeting');
-    const hour = new Date().getHours();
-    
-    let greeting = 'Good ';
-    if (hour < 12) greeting += 'morning';
-    else if (hour < 18) greeting += 'afternoon';
-    else greeting += 'evening';
-    
-    greetingElement.textContent = greeting;
-  }
+  const timeElement = document.getElementById('time');
+  const now = new Date();
+  timeElement.textContent = now.toLocaleTimeString();
+}
   
   class SystemMonitor {
     constructor() {
@@ -107,21 +95,17 @@ function updateTime() {
     const memoryInfo = document.getElementById('memoryInfo');
     
     if (timeElement) {
-      const updateTimeAndGreeting = () => {
+      const updateOnlyTime = () => {
         const now = new Date();
         timeElement.textContent = now.toLocaleTimeString();
-        if (!updateTimeAndGreeting.lastHour || updateTimeAndGreeting.lastHour !== now.getHours()) {
-          updateGreeting();
-          updateTimeAndGreeting.lastHour = now.getHours();
-        }
-        requestAnimationFrame(() => setTimeout(updateTimeAndGreeting, 1000));
+        requestAnimationFrame(() => setTimeout(updateOnlyTime, 1000));
       };
-      updateTimeAndGreeting();
+      updateOnlyTime();
     }
-
+    
     if (memoryInfo) {
       new SystemMonitor();
     }
-
+    
     new ShortcutsMenu();
   }, { once: true });

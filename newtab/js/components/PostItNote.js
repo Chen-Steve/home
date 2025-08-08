@@ -25,9 +25,39 @@ class PostItNote {
       this.currentNoteIndex = -1;
       this.loadNotes();
       this.moveStep = 5; // Reduced step size for smoother movement
-      this.moveInterval = null;
+      this.moveInterval = null; // deprecated in favor of rAF
+      this.moveRafId = null;
+      this.keyboardMoveOffset = { x: 0, y: 0 };
       this.activeKeys = new Set();
+      
+      this.pastelColors = [
+        'rgba(255, 224, 178, 0.8)', // peach
+        'rgba(255, 235, 205, 0.8)', // almond
+        'rgba(255, 245, 157, 0.8)', // soft yellow
+        'rgba(200, 230, 201, 0.8)', // mint
+        'rgba(179, 229, 252, 0.8)', // pale blue
+        'rgba(207, 216, 220, 0.8)', // light blue-grey
+        'rgba(215, 204, 255, 0.8)', // lavender
+        'rgba(255, 204, 213, 0.8)', // rose
+        'rgba(255, 224, 230, 0.8)', // pink
+        'rgba(255, 236, 179, 0.8)'  // soft amber
+      ];
+      this.nextColorIndex = 0;
       this.bindEventListeners();
+    }
+
+    debounce(func, wait) {
+      let timeoutId;
+      return (...args) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => func.apply(this, args), wait);
+      };
+    }
+
+    getNextNoteColor() {
+      const color = this.pastelColors[this.nextColorIndex % this.pastelColors.length];
+      this.nextColorIndex += 1;
+      return color;
     }
   
     bindEventListeners() {
@@ -90,6 +120,7 @@ class PostItNote {
   
     createNewNote() {
       const note = new PostItNote(Date.now());
+      note.color = this.getNextNoteColor();
       this.notes.push(note);
       this.renderNote(note);
       this.saveNotes();
@@ -103,6 +134,9 @@ class PostItNote {
       postIt.style.top = `${note.position.y}px`;
       postIt.style.width = `${note.size.width}px`;
       postIt.style.height = `${note.size.height}px`;
+      if (note.color) {
+        postIt.style.background = note.color;
+      }
   
       postIt.innerHTML = `
         <div class="post-it-header">
@@ -135,31 +169,28 @@ class PostItNote {
     makeNoteDraggable(noteElement) {
       const handle = noteElement.querySelector('.drag-handle');
       let isDragging = false;
-      let currentX;
-      let currentY;
-      let initialX;
-      let initialY;
-      let xOffset = 0;
-      let yOffset = 0;
+      let startMouseX = 0;
+      let startMouseY = 0;
+      let startLeft = 0;
+      let startTop = 0;
   
       handle.addEventListener('mousedown', (e) => {
-        initialX = e.clientX - xOffset;
-        initialY = e.clientY - yOffset;
-        
-        if (e.target === handle || e.target.parentElement === handle) {
-          isDragging = true;
-        }
+        if (!(e.target === handle || e.target.parentElement === handle)) return;
+        isDragging = true;
+        const rect = noteElement.getBoundingClientRect();
+        startMouseX = e.clientX;
+        startMouseY = e.clientY;
+        startLeft = rect.left;
+        startTop = rect.top;
       });
   
       document.addEventListener('mousemove', (e) => {
         if (isDragging) {
           e.preventDefault();
-          currentX = e.clientX - initialX;
-          currentY = e.clientY - initialY;
-          xOffset = currentX;
-          yOffset = currentY;
-  
-          noteElement.style.transform = `translate(${currentX}px, ${currentY}px)`;
+          const dx = e.clientX - startMouseX;
+          const dy = e.clientY - startMouseY;
+          noteElement.style.left = `${startLeft + dx}px`;
+          noteElement.style.top = `${startTop + dy}px`;
         }
       });
   
@@ -171,10 +202,7 @@ class PostItNote {
           const note = this.notes.find(n => n.id === noteId);
           if (note) {
             const rect = noteElement.getBoundingClientRect();
-            note.position = {
-              x: rect.left,
-              y: rect.top
-            };
+            note.position = { x: rect.left, y: rect.top };
             this.saveNotes();
           }
         }
@@ -192,9 +220,14 @@ class PostItNote {
         }
       });
   
-      // Auto-save on content change
+      // Auto-save on content change (debounced to reduce frequent writes)
+      const debouncedSave = this.debounce(() => this.saveNotes(), 600);
       contentDiv.addEventListener('input', () => {
         note.content = contentDiv.innerHTML;
+        debouncedSave();
+      });
+      // Ensure a save when editing ends
+      contentDiv.addEventListener('blur', () => {
         this.saveNotes();
       });
   
@@ -233,7 +266,18 @@ class PostItNote {
     loadNotes() {
       const savedNotes = localStorage.getItem('postItNotes');
       this.notes = savedNotes ? JSON.parse(savedNotes) : [];
-      this.notes.forEach(note => this.renderNote(note));
+      // Ensure each note has a pastel background color
+      let assigned = false;
+      this.notes.forEach((note, idx) => {
+        if (!note.color) {
+          note.color = this.pastelColors[idx % this.pastelColors.length];
+          assigned = true;
+        }
+        this.renderNote(note);
+      });
+      if (assigned) {
+        this.saveNotes();
+      }
     }
   
     makeNoteResizable(noteElement) {
@@ -311,29 +355,44 @@ class PostItNote {
     }
   
     startMoving() {
-      if (this.moveInterval) return;
-      
+      if (this.moveRafId) return;
       const noteElement = this.getCurrentNoteElement();
-      if (noteElement) {
-        noteElement.classList.add('moving');
-      }
-
-      this.moveInterval = setInterval(() => {
-        this.activeKeys.forEach(key => this.moveSelectedNote(key));
-      }, 16); // ~60fps
+      if (noteElement) noteElement.classList.add('moving');
+      this.keyboardMoveOffset = { x: 0, y: 0 };
+      const animate = () => {
+        const el = this.getCurrentNoteElement();
+        if (el && this.activeKeys.size > 0) {
+          this.activeKeys.forEach(key => this.moveSelectedNote(key));
+          el.style.transform = `translate(${this.keyboardMoveOffset.x}px, ${this.keyboardMoveOffset.y}px)`;
+        }
+        this.moveRafId = requestAnimationFrame(animate);
+      };
+      this.moveRafId = requestAnimationFrame(animate);
     }
 
     stopMoving() {
-      if (this.moveInterval) {
-        clearInterval(this.moveInterval);
-        this.moveInterval = null;
-
-        const noteElement = this.getCurrentNoteElement();
-        if (noteElement) {
-          noteElement.classList.remove('moving');
-          this.saveNotes(); // Save position only when movement stops
-        }
+      if (this.moveRafId) {
+        cancelAnimationFrame(this.moveRafId);
+        this.moveRafId = null;
       }
+      const noteElement = this.getCurrentNoteElement();
+      if (!noteElement) return;
+      
+      // Commit the transform delta to absolute left/top and clear transform
+      const noteId = parseInt(noteElement.id.replace('note-', ''));
+      const note = this.notes.find(n => n.id === noteId);
+      if (note) {
+        const newX = Math.max(0, Math.min(window.innerWidth - note.size.width, note.position.x + this.keyboardMoveOffset.x));
+        const newY = Math.max(0, Math.min(window.innerHeight - note.size.height, note.position.y + this.keyboardMoveOffset.y));
+        note.position.x = newX;
+        note.position.y = newY;
+        noteElement.style.left = `${newX}px`;
+        noteElement.style.top = `${newY}px`;
+      }
+      this.keyboardMoveOffset = { x: 0, y: 0 };
+      noteElement.style.transform = '';
+      noteElement.classList.remove('moving');
+      this.saveNotes();
     }
 
     getCurrentNoteElement() {
@@ -344,29 +403,20 @@ class PostItNote {
 
     moveSelectedNote(direction) {
       if (this.currentNoteIndex < 0) return;
-
-      const note = this.notes[this.currentNoteIndex];
-      const noteElement = document.getElementById(`note-${note.id}`);
-      
-      if (!noteElement) return;
-
       switch (direction) {
         case 'ArrowUp':
-          note.position.y = Math.max(0, note.position.y - this.moveStep);
+          this.keyboardMoveOffset.y -= this.moveStep;
           break;
         case 'ArrowDown':
-          note.position.y = Math.min(window.innerHeight - note.size.height, note.position.y + this.moveStep);
+          this.keyboardMoveOffset.y += this.moveStep;
           break;
         case 'ArrowLeft':
-          note.position.x = Math.max(0, note.position.x - this.moveStep);
+          this.keyboardMoveOffset.x -= this.moveStep;
           break;
         case 'ArrowRight':
-          note.position.x = Math.min(window.innerWidth - note.size.width, note.position.x + this.moveStep);
+          this.keyboardMoveOffset.x += this.moveStep;
           break;
       }
-
-      noteElement.style.left = `${note.position.x}px`;
-      noteElement.style.top = `${note.position.y}px`;
     }
   }
   

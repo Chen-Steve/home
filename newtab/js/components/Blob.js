@@ -15,6 +15,16 @@ class Blob {
     this.maxRotationSpeed = 0.05;
     this.deceleration = 0.98;
     
+    // Drag state
+    this.isDragging = false;
+    this.dragRadius = 120; // Max distance the blob can be dragged from its center
+    this.dragOffsetX = 0;
+    this.dragOffsetY = 0;
+    this.snapEase = 0.12; // Higher is snappier
+    
+    // SPIN SPEED WHILE DRAGGING: change this value to adjust how fast the blob spins during drag
+    this.dragSpinSpeed = 0.06;
+    
     this.boundAnimate = this.animate.bind(this);
     this.debouncedResize = this.debounce(this.resize.bind(this), 250);
     
@@ -22,17 +32,38 @@ class Blob {
     window.addEventListener('resize', this.debouncedResize);
     this.boundAnimate();
     
-    this.canvas.addEventListener('mousedown', () => {
-      this.rotationSpeed = this.maxRotationSpeed;
-    });
+    // Mouse handlers for dragging within a radius with snap-back
+    this.onMouseDown = (e) => {
+      const { x, y } = this.getPointerPos(e);
+      const cx = this.centerX + this.dragOffsetX;
+      const cy = this.centerY + this.dragOffsetY;
+      const dx = x - cx;
+      const dy = y - cy;
+      const dist2 = dx * dx + dy * dy;
+      const approxBlobRadius = this.radius + 30; // allowance for organic edge
+      if (dist2 <= approxBlobRadius * approxBlobRadius) {
+        this.isDragging = true;
+        this.updateDrag({ x, y });
+        e.preventDefault();
+      }
+    };
     
-    this.canvas.addEventListener('mouseup', () => {
-      // Let deceleration handle slowing down
-    });
+    this.onMouseMove = (e) => {
+      if (!this.isDragging) return;
+      const { x, y } = this.getPointerPos(e);
+      this.updateDrag({ x, y });
+      e.preventDefault();
+    };
     
-    this.canvas.addEventListener('mouseleave', () => {
-      // Also handle mouse leaving canvas while clicked
-    });
+    this.onMouseUp = () => {
+      if (!this.isDragging) return;
+      this.isDragging = false;
+    };
+    
+    this.canvas.addEventListener('mousedown', this.onMouseDown);
+    window.addEventListener('mousemove', this.onMouseMove);
+    window.addEventListener('mouseup', this.onMouseUp);
+    this.canvas.addEventListener('mouseleave', this.onMouseUp);
     
     this.canvas.style.position = 'absolute';
     this.canvas.style.top = '0';
@@ -58,18 +89,21 @@ class Blob {
     this.canvas.height = window.innerHeight;
     this.centerX = this.canvas.width / 2;
     this.centerY = this.canvas.height / 2;
-    this.gradient = null;
+    // Keep current drag offsets; re-centering maintains relative offset visually
   }
 
   draw() {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.ctx.beginPath();
     
+    const cx = this.centerX + this.dragOffsetX;
+    const cy = this.centerY + this.dragOffsetY;
+    
     for (let i = 0; i < this.numPoints; i++) {
       const noise = Math.sin(this.time + i) * 15;
       const currentAngle = this.angle * i + this.rotation;
-      const x = this.centerX + Math.cos(currentAngle) * (this.radius + noise);
-      const y = this.centerY + Math.sin(currentAngle) * (this.radius + noise);
+      const x = cx + Math.cos(currentAngle) * (this.radius + noise);
+      const y = cy + Math.sin(currentAngle) * (this.radius + noise);
       this.points[i] = { x, y };
     }
     
@@ -88,27 +122,71 @@ class Blob {
 
     this.ctx.closePath();
     
-    if (!this.gradient) {
-      this.gradient = this.ctx.createRadialGradient(
-        this.centerX, this.centerY, 0,
-        this.centerX, this.centerY, this.radius * 1.5
-      );
-      this.gradient.addColorStop(0, 'rgba(44, 62, 80, 0.1)');
-      this.gradient.addColorStop(1, 'rgba(44, 62, 80, 0.05)');
-    }
-    
-    this.ctx.fillStyle = this.gradient;
+    // Recompute gradient each frame so it follows the blob center
+    const gradient = this.ctx.createRadialGradient(
+      cx,
+      cy,
+      0,
+      cx,
+      cy,
+      this.radius * 1.5
+    );
+    gradient.addColorStop(0, 'rgba(44, 62, 80, 0.1)');
+    gradient.addColorStop(1, 'rgba(44, 62, 80, 0.05)');
+    this.ctx.fillStyle = gradient;
     this.ctx.fill();
   }
 
   animate() {
     this.time += this.animationSpeed;
     
+    // Ease drag offset back to center when not dragging
+    if (!this.isDragging) {
+      this.dragOffsetX += (0 - this.dragOffsetX) * this.snapEase;
+      this.dragOffsetY += (0 - this.dragOffsetY) * this.snapEase;
+      if (Math.abs(this.dragOffsetX) < 0.01) this.dragOffsetX = 0;
+      if (Math.abs(this.dragOffsetY) < 0.01) this.dragOffsetY = 0;
+    }
+    
+    // Maintain previous rotation behavior (slow down over time)
     this.rotationSpeed *= this.deceleration;
+    
+    // While dragging, force a constant spin speed
+    if (this.isDragging) {
+      this.rotationSpeed = this.dragSpinSpeed; // adjust via this.dragSpinSpeed (see constructor)
+    }
     
     this.rotation += this.rotationSpeed;
     this.draw();
     requestAnimationFrame(this.boundAnimate);
+  }
+
+  getPointerPos(evt) {
+    const rect = this.canvas.getBoundingClientRect();
+    const scaleX = this.canvas.width / rect.width;
+    const scaleY = this.canvas.height / rect.height;
+    return {
+      x: (evt.clientX - rect.left) * scaleX,
+      y: (evt.clientY - rect.top) * scaleY,
+    };
+  }
+
+  updateDrag(pointer) {
+    // Desired vector from original center to pointer
+    const dx = pointer.x - this.centerX;
+    const dy = pointer.y - this.centerY;
+    const clamped = this.clampVector(dx, dy, this.dragRadius);
+    this.dragOffsetX = clamped.x;
+    this.dragOffsetY = clamped.y;
+  }
+
+  clampVector(x, y, maxLength) {
+    const lengthSq = x * x + y * y;
+    const maxSq = maxLength * maxLength;
+    if (lengthSq <= maxSq || lengthSq === 0) return { x, y };
+    const length = Math.sqrt(lengthSq);
+    const scale = maxLength / length;
+    return { x: x * scale, y: y * scale };
   }
 }
 
