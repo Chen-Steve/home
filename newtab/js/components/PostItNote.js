@@ -169,43 +169,99 @@ class PostItNote {
     makeNoteDraggable(noteElement) {
       const handle = noteElement.querySelector('.drag-handle');
       let isDragging = false;
-      let startMouseX = 0;
-      let startMouseY = 0;
+      let startPointerX = 0;
+      let startPointerY = 0;
       let startLeft = 0;
       let startTop = 0;
-  
-      handle.addEventListener('mousedown', (e) => {
+      let deltaX = 0;
+      let deltaY = 0;
+      let rafId = null;
+      let elementWidth = 0;
+      let elementHeight = 0;
+
+      const applyTransform = () => {
+        rafId = null;
+        noteElement.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+      };
+
+      const onPointerMove = (e) => {
+        if (!isDragging) return;
+        e.preventDefault();
+        const rawDx = e.clientX - startPointerX;
+        const rawDy = e.clientY - startPointerY;
+
+        // Clamp movement so the note cannot be dragged outside the viewport.
+        const minX = -startLeft;
+        const maxX = (window.innerWidth - elementWidth) - startLeft;
+        const minY = -startTop;
+        const maxY = (window.innerHeight - elementHeight) - startTop;
+
+        deltaX = Math.max(minX, Math.min(maxX, rawDx));
+        deltaY = Math.max(minY, Math.min(maxY, rawDy));
+        if (rafId === null) {
+          rafId = requestAnimationFrame(applyTransform);
+        }
+      };
+
+      const onPointerUp = (e) => {
+        if (!isDragging) return;
+        isDragging = false;
+        if (rafId) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
+        }
+        // Commit the transform delta to absolute left/top
+        const noteId = parseInt(noteElement.id.replace('note-', ''));
+        const note = this.notes.find(n => n.id === noteId);
+        let newX = startLeft + deltaX;
+        let newY = startTop + deltaY;
+
+        // While 'moving' class is still applied (no transition), commit position
+        noteElement.style.left = `${newX}px`;
+        noteElement.style.top = `${newY}px`;
+        noteElement.style.transform = '';
+        // Remove 'moving' on the next frame to avoid any flicker
+        requestAnimationFrame(() => {
+          noteElement.classList.remove('moving');
+        });
+
+        if (note) {
+          note.position = { x: newX, y: newY };
+          this.saveNotes();
+        }
+
+        window.removeEventListener('pointermove', onPointerMove);
+        // release capture if supported
+        try {
+          if (e.pointerId != null && noteElement.releasePointerCapture) {
+            noteElement.releasePointerCapture(e.pointerId);
+          }
+        } catch (_) {}
+      };
+
+      handle.addEventListener('pointerdown', (e) => {
         if (!(e.target === handle || e.target.parentElement === handle)) return;
         isDragging = true;
         const rect = noteElement.getBoundingClientRect();
-        startMouseX = e.clientX;
-        startMouseY = e.clientY;
+        startPointerX = e.clientX;
+        startPointerY = e.clientY;
         startLeft = rect.left;
         startTop = rect.top;
-      });
-  
-      document.addEventListener('mousemove', (e) => {
-        if (isDragging) {
-          e.preventDefault();
-          const dx = e.clientX - startMouseX;
-          const dy = e.clientY - startMouseY;
-          noteElement.style.left = `${startLeft + dx}px`;
-          noteElement.style.top = `${startTop + dy}px`;
-        }
-      });
-  
-      document.addEventListener('mouseup', () => {
-        if (isDragging) {
-          isDragging = false;
-          // Update note position in storage
-          const noteId = parseInt(noteElement.id.replace('note-', ''));
-          const note = this.notes.find(n => n.id === noteId);
-          if (note) {
-            const rect = noteElement.getBoundingClientRect();
-            note.position = { x: rect.left, y: rect.top };
-            this.saveNotes();
+        elementWidth = rect.width;
+        elementHeight = rect.height;
+        deltaX = 0;
+        deltaY = 0;
+        noteElement.classList.add('moving');
+        e.preventDefault();
+        // capture to keep receiving moves even if pointer leaves window
+        try {
+          if (e.pointerId != null && noteElement.setPointerCapture) {
+            noteElement.setPointerCapture(e.pointerId);
           }
-        }
+        } catch (_) {}
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp, { once: true });
+        window.addEventListener('pointercancel', onPointerUp, { once: true });
       });
     }
   

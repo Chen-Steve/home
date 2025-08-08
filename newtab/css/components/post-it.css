@@ -42,6 +42,8 @@
 
 .post-it.moving {
   transition: none;
+  cursor: grabbing;
+  user-select: none;
 }
 
 /* Post-it Header */
@@ -55,9 +57,11 @@
 }
 
 .drag-handle {
-  cursor: move;
+  cursor: grab;
   padding: 4px;
   color: rgba(0, 0, 0, 0.5);
+  touch-action: none;
+  -webkit-user-drag: none;
 }
 
 .delete-note {
