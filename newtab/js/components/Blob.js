@@ -32,8 +32,8 @@ class Blob {
     window.addEventListener('resize', this.debouncedResize);
     this.boundAnimate();
     
-    // Mouse handlers for dragging within a radius with snap-back
-    this.onMouseDown = (e) => {
+    // Pointer handlers for dragging within a radius with snap-back
+    this.onPointerDown = (e) => {
       const { x, y } = this.getPointerPos(e);
       const cx = this.centerX + this.dragOffsetX;
       const cy = this.centerY + this.dragOffsetY;
@@ -44,32 +44,38 @@ class Blob {
       if (dist2 <= approxBlobRadius * approxBlobRadius) {
         this.isDragging = true;
         this.updateDrag({ x, y });
+        // Ensure subsequent moves go to the canvas even if pointer crosses other elements
+        try { this.canvas.setPointerCapture && this.canvas.setPointerCapture(e.pointerId); } catch (_) {}
+        document.body.classList.add('dragging-blob');
         e.preventDefault();
       }
     };
-    
-    this.onMouseMove = (e) => {
+
+    this.onPointerMove = (e) => {
       if (!this.isDragging) return;
       const { x, y } = this.getPointerPos(e);
       this.updateDrag({ x, y });
       e.preventDefault();
     };
-    
-    this.onMouseUp = () => {
+
+    this.onPointerUp = (e) => {
       if (!this.isDragging) return;
       this.isDragging = false;
+      try { this.canvas.releasePointerCapture && this.canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+      document.body.classList.remove('dragging-blob');
     };
-    
-    this.canvas.addEventListener('mousedown', this.onMouseDown);
-    window.addEventListener('mousemove', this.onMouseMove);
-    window.addEventListener('mouseup', this.onMouseUp);
-    this.canvas.addEventListener('mouseleave', this.onMouseUp);
+
+    this.canvas.addEventListener('pointerdown', this.onPointerDown);
+    this.canvas.addEventListener('pointermove', this.onPointerMove);
+    this.canvas.addEventListener('pointerup', this.onPointerUp);
+    this.canvas.addEventListener('pointercancel', this.onPointerUp);
     
     this.canvas.style.position = 'absolute';
     this.canvas.style.top = '0';
     this.canvas.style.left = '0';
     this.canvas.style.zIndex = '1';
     this.canvas.style.pointerEvents = 'auto';
+    this.canvas.style.touchAction = 'none';
   }
 
   debounce(func, wait) {

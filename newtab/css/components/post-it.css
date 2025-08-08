@@ -46,6 +46,12 @@
   user-select: none;
 }
 
+/* While dragging the blob, let pointer events flow to the canvas */
+body.dragging-blob .post-it,
+body.dragging-blob .post-it * {
+  pointer-events: none !important;
+}
+
 /* Post-it Header */
 .post-it-header {
   display: flex;
