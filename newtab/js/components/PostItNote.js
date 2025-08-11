@@ -23,7 +23,6 @@ class PostItNote {
     constructor() {
       this.notes = [];
       this.currentNoteIndex = -1;
-      this.loadNotes();
       this.moveStep = 5; // Reduced step size for smoother movement
       this.moveInterval = null; // deprecated in favor of rAF
       this.moveRafId = null;
@@ -45,6 +44,7 @@ class PostItNote {
       this.nextColorIndex = 0;
       this.bindEventListeners();
       this.createCreateNoteButton();
+      this.loadNotes();
     }
 
     debounce(func, wait) {
