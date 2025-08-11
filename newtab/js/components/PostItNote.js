@@ -44,6 +44,7 @@ class PostItNote {
       ];
       this.nextColorIndex = 0;
       this.bindEventListeners();
+      this.createCreateNoteButton();
     }
 
     debounce(func, wait) {
@@ -52,6 +53,21 @@ class PostItNote {
         clearTimeout(timeoutId);
         timeoutId = setTimeout(() => func.apply(this, args), wait);
       };
+    }
+
+    createCreateNoteButton() {
+      // Floating "+" button to create notes without keyboard shortcuts
+      const existing = document.querySelector('.create-postit');
+      if (existing) return;
+      const button = document.createElement('button');
+      button.className = 'create-postit';
+      // Use a text fallback so it works even if Font Awesome is blocked by CSP
+      button.setAttribute('aria-label', 'Create new note');
+      button.textContent = '+';
+      button.addEventListener('click', () => {
+        this.createNewNote();
+      });
+      document.body.appendChild(button);
     }
 
     getNextNoteColor() {
