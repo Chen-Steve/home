@@ -7,6 +7,7 @@
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  -webkit-text-fill-color: transparent;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
   user-select: none;
   -webkit-user-select: none;
@@ -16,6 +17,7 @@
 
 /* Time Display */
 #time {
+  top: 20px;
   font-size: 6rem;
   padding: 5px 15px;
   margin-top: 10px;
@@ -23,6 +25,7 @@
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  -webkit-text-fill-color: transparent;
   font-weight: 300;
 }
 
@@ -36,6 +39,7 @@
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  -webkit-text-fill-color: transparent;
   font-weight: 300;
 }
 

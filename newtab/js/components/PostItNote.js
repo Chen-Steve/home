@@ -108,7 +108,8 @@ class PostItNote {
         }
       });
 
-      window.addEventListener('resize', () => this.adjustNotesPosition());
+      this.onResize = this.debounce(() => this.adjustNotesPosition(), 200);
+      window.addEventListener('resize', this.onResize);
     }
   
     selectNextNote() {

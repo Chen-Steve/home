@@ -14,7 +14,8 @@ class TextFormatter {
   bindShortcuts() {
     this.element.addEventListener('keydown', this.handleKeydown.bind(this));
     this.element.addEventListener('input', () => {
-      this.element.dispatchEvent(new Event('contentChanged'));
+      const detail = { html: this.element.innerHTML, text: this.element.textContent };
+      this.element.dispatchEvent(new CustomEvent('contentChanged', { detail }));
     });
   }
 
@@ -45,7 +46,9 @@ class TextFormatter {
     const sizeChanges = {
       '+': 2,
       '=': 2,
-      '-': -2
+      '-': -2,
+      'Add': 2,    // Numpad + (some browsers)
+      'Subtract': -2 // Numpad -
     };
 
     const change = sizeChanges[e.key];
@@ -57,11 +60,15 @@ class TextFormatter {
 
   changeFontSize(change) {
     const currentSize = parseInt(window.getComputedStyle(this.element).fontSize);
-    const newSize = Math.min(Math.max(currentSize + change, 12), 32);
+    const clamp = (val, min = 12, max = 32) => Math.min(Math.max(val, min), max);
+    const newSize = (window.formatters && window.formatters.clampFontSize)
+      ? window.formatters.clampFontSize(currentSize + change, 12, 32)
+      : clamp(currentSize + change, 12, 32);
     this.element.style.fontSize = `${newSize}px`;
-    
-    this.element.dispatchEvent(new Event('contentChanged'));
-    this.element.dispatchEvent(new Event('fontSizeChanged'));
+
+    const detail = { fontSizePx: newSize, html: this.element.innerHTML, text: this.element.textContent };
+    this.element.dispatchEvent(new CustomEvent('contentChanged', { detail }));
+    this.element.dispatchEvent(new CustomEvent('fontSizeChanged', { detail }));
   }
 }
 

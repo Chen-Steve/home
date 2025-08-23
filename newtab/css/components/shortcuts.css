@@ -13,7 +13,7 @@
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
-  z-index: 1000;
+  z-index: var(--z-ui, 1000);
 }
 
 .shortcuts-button:hover {
@@ -37,7 +37,7 @@
   opacity: 0;
   visibility: hidden;
   transition: all 0.3s ease;
-  z-index: 1000;
+  z-index: var(--z-ui, 1000);
 }
 
 .shortcuts-panel.show {

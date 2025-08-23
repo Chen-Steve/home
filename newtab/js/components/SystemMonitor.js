@@ -7,11 +7,17 @@ function updateTime() {
   class SystemMonitor {
     constructor() {
       this.memoryInfo = document.querySelector('#memoryInfo');
+      this.rafId = null;
+      this.timerId = null;
       this.initializeMonitoring();
       this.initializeCardBehavior();
     }
   
     formatBytes(bytes) {
+      if (window.formatters && window.formatters.formatBytes) {
+        return window.formatters.formatBytes(bytes, 2);
+      }
+      // Fallback
       if (bytes === 0) return '0 B';
       const k = 1024;
       const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -59,11 +65,29 @@ function updateTime() {
     }
   
     initializeMonitoring() {
-      const update = () => {
+      this.startMonitoring();
+    }
+
+    startMonitoring() {
+      if (this.timerId || this.rafId) return;
+      const tick = () => {
         this.updateMemoryInfo();
-        setTimeout(() => requestAnimationFrame(update), 5000);
+        this.timerId = setTimeout(() => {
+          this.rafId = requestAnimationFrame(tick);
+        }, 5000);
       };
-      update();
+      tick();
+    }
+
+    stopMonitoring() {
+      if (this.timerId) {
+        clearTimeout(this.timerId);
+        this.timerId = null;
+      }
+      if (this.rafId) {
+        cancelAnimationFrame(this.rafId);
+        this.rafId = null;
+      }
     }
 
     initializeCardBehavior() {
@@ -104,7 +128,7 @@ function updateTime() {
     }
     
     if (memoryInfo) {
-      new SystemMonitor();
+      window.systemMonitor = new SystemMonitor();
     }
     
     new ShortcutsMenu();

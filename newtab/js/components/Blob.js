@@ -26,11 +26,12 @@ class Blob {
     this.dragSpinSpeed = 0.06;
     
     this.boundAnimate = this.animate.bind(this);
+    this.rafId = null;
     this.debouncedResize = this.debounce(this.resize.bind(this), 250);
     
     this.resize();
     window.addEventListener('resize', this.debouncedResize);
-    this.boundAnimate();
+    this.start();
     
     // Pointer handlers for dragging within a radius with snap-back
     this.onPointerDown = (e) => {
@@ -76,6 +77,27 @@ class Blob {
     this.canvas.style.zIndex = '1';
     this.canvas.style.pointerEvents = 'auto';
     this.canvas.style.touchAction = 'none';
+  }
+
+  start() {
+    if (this.rafId != null) return;
+    this.rafId = requestAnimationFrame(this.boundAnimate);
+  }
+
+  stop() {
+    if (this.rafId != null) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
+  }
+
+  destroy() {
+    this.stop();
+    window.removeEventListener('resize', this.debouncedResize);
+    this.canvas.removeEventListener('pointerdown', this.onPointerDown);
+    this.canvas.removeEventListener('pointermove', this.onPointerMove);
+    this.canvas.removeEventListener('pointerup', this.onPointerUp);
+    this.canvas.removeEventListener('pointercancel', this.onPointerUp);
   }
 
   debounce(func, wait) {
@@ -144,7 +166,11 @@ class Blob {
   }
 
   animate() {
-    this.time += this.animationSpeed;
+    // Respect reduced motion user preference
+    const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!prefersReduced) {
+      this.time += this.animationSpeed;
+    }
     
     // Ease drag offset back to center when not dragging
     if (!this.isDragging) {
@@ -162,9 +188,11 @@ class Blob {
       this.rotationSpeed = this.dragSpinSpeed; // adjust via this.dragSpinSpeed (see constructor)
     }
     
-    this.rotation += this.rotationSpeed;
+    if (!prefersReduced) {
+      this.rotation += this.rotationSpeed;
+    }
     this.draw();
-    requestAnimationFrame(this.boundAnimate);
+    this.rafId = requestAnimationFrame(this.boundAnimate);
   }
 
   getPointerPos(evt) {
@@ -199,6 +227,6 @@ class Blob {
 document.addEventListener('DOMContentLoaded', () => {
   const canvas = document.getElementById('background');
   if (canvas) {
-    new Blob(canvas);
+    window.blob = new Blob(canvas);
   }
 }); 
