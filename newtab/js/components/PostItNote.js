@@ -24,7 +24,6 @@ class PostItNote {
       this.notes = [];
       this.currentNoteIndex = -1;
       this.moveStep = 5; // Reduced step size for smoother movement
-      this.moveInterval = null; // deprecated in favor of rAF
       this.moveRafId = null;
       this.keyboardMoveOffset = { x: 0, y: 0 };
       this.activeKeys = new Set();
@@ -41,7 +40,6 @@ class PostItNote {
         'rgba(255, 224, 230, 0.8)', // pink
         'rgba(255, 236, 179, 0.8)'  // soft amber
       ];
-      this.nextColorIndex = 0;
       this.bindEventListeners();
       this.createCreateNoteButton();
       this.loadNotes();
@@ -70,10 +68,20 @@ class PostItNote {
       document.body.appendChild(button);
     }
 
-    getNextNoteColor() {
-      const color = this.pastelColors[this.nextColorIndex % this.pastelColors.length];
-      this.nextColorIndex += 1;
-      return color;
+    getRandomNoteColor() {
+      const randomIndex = Math.floor(Math.random() * this.pastelColors.length);
+      return this.pastelColors[randomIndex];
+    }
+
+    // Helper: Extract note ID from element
+    getNoteIdFromElement(element) {
+      return parseInt(element.id.replace('note-', ''));
+    }
+
+    // Helper: Get note object by element
+    getNoteFromElement(element) {
+      const noteId = this.getNoteIdFromElement(element);
+      return this.notes.find(n => n.id === noteId);
     }
   
     bindEventListeners() {
@@ -116,18 +124,16 @@ class PostItNote {
       if (this.notes.length === 0) return;
       
       // Remove focus from current note if any
-      if (this.currentNoteIndex >= 0) {
-        const currentNote = document.getElementById(`note-${this.notes[this.currentNoteIndex].id}`);
-        if (currentNote) {
-          currentNote.classList.remove('selected');
-        }
+      const currentNoteElement = this.getCurrentNoteElement();
+      if (currentNoteElement) {
+        currentNoteElement.classList.remove('selected');
       }
-  
+
       // Move to next note or back to start
       this.currentNoteIndex = (this.currentNoteIndex + 1) % this.notes.length;
       
       // Focus on new note
-      const nextNote = document.getElementById(`note-${this.notes[this.currentNoteIndex].id}`);
+      const nextNote = this.getCurrentNoteElement();
       if (nextNote) {
         nextNote.classList.add('selected');
         const contentDiv = nextNote.querySelector('.post-it-content');
@@ -137,7 +143,7 @@ class PostItNote {
   
     createNewNote() {
       const note = new PostItNote(Date.now());
-      note.color = this.getNextNoteColor();
+      note.color = this.getRandomNoteColor();
       this.notes.push(note);
       this.renderNote(note);
       this.saveNotes();
@@ -228,8 +234,7 @@ class PostItNote {
           rafId = null;
         }
         // Commit the transform delta to absolute left/top
-        const noteId = parseInt(noteElement.id.replace('note-', ''));
-        const note = this.notes.find(n => n.id === noteId);
+        const note = this.getNoteFromElement(noteElement);
         let newX = startLeft + deltaX;
         let newY = startTop + deltaY;
 
@@ -322,9 +327,11 @@ class PostItNote {
       this.notes.forEach(note => {
         const noteElement = document.getElementById(`note-${note.id}`);
         if (noteElement) {
-          // Ensure notes stay within viewport
-          note.position.x = Math.min(note.position.x, window.innerWidth - 200);
-          note.position.y = Math.min(note.position.y, window.innerHeight - 200);
+          // Ensure notes stay within viewport using actual note size
+          const maxX = window.innerWidth - note.size.width;
+          const maxY = window.innerHeight - note.size.height;
+          note.position.x = Math.max(0, Math.min(note.position.x, maxX));
+          note.position.y = Math.max(0, Math.min(note.position.y, maxY));
           noteElement.style.left = `${note.position.x}px`;
           noteElement.style.top = `${note.position.y}px`;
         }
@@ -341,9 +348,9 @@ class PostItNote {
       this.notes = savedNotes ? JSON.parse(savedNotes) : [];
       // Ensure each note has a pastel background color
       let assigned = false;
-      this.notes.forEach((note, idx) => {
+      this.notes.forEach((note) => {
         if (!note.color) {
-          note.color = this.pastelColors[idx % this.pastelColors.length];
+          note.color = this.getRandomNoteColor();
           assigned = true;
         }
         this.renderNote(note);
@@ -360,7 +367,46 @@ class PostItNote {
       let originalHeight;
       let originalX;
       let originalY;
-  
+      let debouncedResizeSave = this.debounce(() => this.saveNotes(), 300);
+
+      const onMouseMove = (e) => {
+        if (!isResizing) return;
+
+        const width = originalWidth + (e.clientX - originalX);
+        const height = originalHeight + (e.clientY - originalY);
+
+        // Minimum size constraints
+        const newWidth = Math.max(150, width);
+        const newHeight = Math.max(150, height);
+
+        noteElement.style.width = `${newWidth}px`;
+        noteElement.style.height = `${newHeight}px`;
+
+        // Update note size in storage (debounced)
+        const note = this.getNoteFromElement(noteElement);
+        if (note) {
+          note.size = {
+            width: newWidth,
+            height: newHeight
+          };
+          debouncedResizeSave();
+        }
+      };
+
+      const onMouseUp = () => {
+        if (!isResizing) return;
+        isResizing = false;
+        
+        // Final save when resize ends
+        const note = this.getNoteFromElement(noteElement);
+        if (note) {
+          this.saveNotes();
+        }
+        
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+      };
+
       resizeHandle.addEventListener('mousedown', (e) => {
         isResizing = true;
         originalWidth = noteElement.offsetWidth;
@@ -370,60 +416,33 @@ class PostItNote {
         
         e.preventDefault();
         e.stopPropagation();
-      });
-  
-      document.addEventListener('mousemove', (e) => {
-        if (!isResizing) return;
-  
-        const width = originalWidth + (e.clientX - originalX);
-        const height = originalHeight + (e.clientY - originalY);
-  
-        // Minimum size constraints
-        const newWidth = Math.max(150, width);
-        const newHeight = Math.max(150, height);
-  
-        noteElement.style.width = `${newWidth}px`;
-        noteElement.style.height = `${newHeight}px`;
-  
-        // Update note size in storage
-        const noteId = parseInt(noteElement.id.replace('note-', ''));
-        const note = this.notes.find(n => n.id === noteId);
-        if (note) {
-          note.size = {
-            width: newWidth,
-            height: newHeight
-          };
-          this.saveNotes();
-        }
-      });
-  
-      document.addEventListener('mouseup', () => {
-        isResizing = false;
+        
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp, { once: true });
       });
     }
   
     deleteSelectedNote() {
       if (this.currentNoteIndex < 0 || this.notes.length === 0) return;
-  
+
+      const noteElement = this.getCurrentNoteElement();
+      if (!noteElement) return;
+
       const noteToDelete = this.notes[this.currentNoteIndex];
-      const noteElement = document.getElementById(`note-${noteToDelete.id}`);
+      noteElement.remove();
+      this.notes = this.notes.filter(n => n.id !== noteToDelete.id);
+      this.saveNotes();
       
-      if (noteElement) {
-        noteElement.remove();
-        this.notes = this.notes.filter(n => n.id !== noteToDelete.id);
-        this.saveNotes();
-        
-        // Reset selection index if we deleted the last note
-        if (this.currentNoteIndex >= this.notes.length) {
-          this.currentNoteIndex = this.notes.length - 1;
-        }
-        
-        // If there are remaining notes, select the next one
-        if (this.notes.length > 0) {
-          this.selectNextNote();
-        } else {
-          this.currentNoteIndex = -1;
-        }
+      // Reset selection index if we deleted the last note
+      if (this.currentNoteIndex >= this.notes.length) {
+        this.currentNoteIndex = this.notes.length - 1;
+      }
+      
+      // If there are remaining notes, select the next one
+      if (this.notes.length > 0) {
+        this.selectNextNote();
+      } else {
+        this.currentNoteIndex = -1;
       }
     }
   
@@ -452,8 +471,7 @@ class PostItNote {
       if (!noteElement) return;
       
       // Commit the transform delta to absolute left/top and clear transform
-      const noteId = parseInt(noteElement.id.replace('note-', ''));
-      const note = this.notes.find(n => n.id === noteId);
+      const note = this.getNoteFromElement(noteElement);
       if (note) {
         const newX = Math.max(0, Math.min(window.innerWidth - note.size.width, note.position.x + this.keyboardMoveOffset.x));
         const newY = Math.max(0, Math.min(window.innerHeight - note.size.height, note.position.y + this.keyboardMoveOffset.y));

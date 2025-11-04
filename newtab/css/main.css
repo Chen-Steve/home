@@ -36,15 +36,26 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Background Canvas */
-#background {
+/* Canvas elements - shared styles */
+#background,
+#floating-blobs-canvas {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  z-index: var(--z-background);
   pointer-events: none;
+}
+
+/* Background Canvas */
+#background {
+  z-index: var(--z-background);
+}
+
+/* Floating Blobs Canvas */
+#floating-blobs-canvas {
+  z-index: 1;
+  opacity: 0.8;
 }
 
 /* Focus styles */

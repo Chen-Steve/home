@@ -9,10 +9,7 @@ class Blob {
     this.animationSpeed = 0.002;
     this.time = 0;
     this.rotation = 0;
-    this.isHovered = false;
     this.rotationSpeed = 0;
-    this.targetRotationSpeed = 0;
-    this.maxRotationSpeed = 0.05;
     this.deceleration = 0.98;
     
     // Drag state
@@ -168,8 +165,19 @@ class Blob {
   animate() {
     // Respect reduced motion user preference
     const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    
     if (!prefersReduced) {
       this.time += this.animationSpeed;
+      
+      // Maintain previous rotation behavior (slow down over time)
+      this.rotationSpeed *= this.deceleration;
+      
+      // While dragging, force a constant spin speed
+      if (this.isDragging) {
+        this.rotationSpeed = this.dragSpinSpeed;
+      }
+      
+      this.rotation += this.rotationSpeed;
     }
     
     // Ease drag offset back to center when not dragging
@@ -180,17 +188,6 @@ class Blob {
       if (Math.abs(this.dragOffsetY) < 0.01) this.dragOffsetY = 0;
     }
     
-    // Maintain previous rotation behavior (slow down over time)
-    this.rotationSpeed *= this.deceleration;
-    
-    // While dragging, force a constant spin speed
-    if (this.isDragging) {
-      this.rotationSpeed = this.dragSpinSpeed; // adjust via this.dragSpinSpeed (see constructor)
-    }
-    
-    if (!prefersReduced) {
-      this.rotation += this.rotationSpeed;
-    }
     this.draw();
     this.rafId = requestAnimationFrame(this.boundAnimate);
   }

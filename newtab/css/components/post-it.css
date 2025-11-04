@@ -22,16 +22,9 @@
 .create-postit:focus-visible,
 .delete-note:focus,
 .delete-note:focus-visible,
-.post-it:focus,
 .post-it :focus,
-.post-it:focus-visible,
 .post-it :focus-visible {
   outline: none;
-}
-
-.create-postit i {
-  font-size: 1.2rem;
-  color: black;
 }
 
 /* Post-it Note Container */
@@ -154,7 +147,6 @@ body.dragging-blob .post-it * {
   text-decoration: underline;
 }
 
-/* Resize Handle */
 .post-it .resize-handle {
   position: absolute;
   right: 0;
@@ -170,12 +162,6 @@ body.dragging-blob .post-it * {
   box-shadow: 0 0 0 2px #2C3E50;
 }
 
-/* Textarea Height Fix */
-.post-it textarea {
-  height: calc(100% - 40px);
-}
-
-/* Mobile Responsiveness */
 @media screen and (max-width: 768px) {
   .post-it {
     min-width: 120px;

@@ -95,7 +95,7 @@ class ShortcutsMenu {
     }
   } 
   
-  // Initialize when DOM is loaded (kept here so it works without SystemMonitor)
+  // Initialize when DOM is loaded
   document.addEventListener('DOMContentLoaded', () => {
     new ShortcutsMenu();
   }, { once: true });

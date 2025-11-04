@@ -70,7 +70,7 @@
   min-width: 100px;
 }
 
-kbd {
+.shortcut-keys kbd {
   background: #f8f9fa;
   border: 1px solid #dee2e6;
   border-radius: 3px;
