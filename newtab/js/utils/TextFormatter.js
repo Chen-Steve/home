@@ -29,17 +29,81 @@ class TextFormatter {
   }
 
   handleFormattingShortcuts(e) {
-    const commands = {
-      'b': 'bold',
-      'i': 'italic',
-      'u': 'underline'
+    const tagMap = {
+      'b': 'strong',
+      'i': 'em',
+      'u': 'u'
     };
 
-    const command = commands[e.key.toLowerCase()];
-    if (command) {
+    const tag = tagMap[e.key.toLowerCase()];
+    if (tag) {
       e.preventDefault();
-      document.execCommand(command, false, null);
+      this.toggleInlineFormat(tag);
     }
+  }
+
+  /**
+   * Toggle inline formatting using modern Selection API (replaces deprecated execCommand)
+   * @param {string} tagName - The HTML tag to wrap selection with (e.g., 'strong', 'em', 'u')
+   */
+  toggleInlineFormat(tagName) {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    if (range.collapsed) return; // No text selected
+
+    // Check if selection is already wrapped in this tag
+    const parentTag = this.getParentWithTag(range.commonAncestorContainer, tagName);
+    
+    if (parentTag) {
+      // Remove formatting: unwrap the tag
+      this.unwrapTag(parentTag);
+    } else {
+      // Apply formatting: wrap selection in tag
+      const wrapper = document.createElement(tagName);
+      try {
+        range.surroundContents(wrapper);
+      } catch (e) {
+        // If surroundContents fails (partial selection across elements), extract and wrap
+        const fragment = range.extractContents();
+        wrapper.appendChild(fragment);
+        range.insertNode(wrapper);
+      }
+    }
+
+    // Restore selection
+    selection.removeAllRanges();
+    const newRange = document.createRange();
+    newRange.selectNodeContents(this.element);
+    selection.addRange(newRange);
+    selection.collapseToEnd();
+  }
+
+  /**
+   * Find parent element with specified tag name
+   */
+  getParentWithTag(node, tagName) {
+    let current = node;
+    while (current && current !== this.element) {
+      if (current.nodeType === Node.ELEMENT_NODE && 
+          current.tagName.toLowerCase() === tagName.toLowerCase()) {
+        return current;
+      }
+      current = current.parentNode;
+    }
+    return null;
+  }
+
+  /**
+   * Unwrap a tag, keeping its contents
+   */
+  unwrapTag(element) {
+    const parent = element.parentNode;
+    while (element.firstChild) {
+      parent.insertBefore(element.firstChild, element);
+    }
+    parent.removeChild(element);
   }
 
   handleFontSizeShortcuts(e) {

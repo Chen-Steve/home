@@ -45,14 +45,6 @@ class PostItNote {
       this.loadNotes();
     }
 
-    debounce(func, wait) {
-      let timeoutId;
-      return (...args) => {
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => func.apply(this, args), wait);
-      };
-    }
-
     createCreateNoteButton() {
       // Floating "+" button to create notes without keyboard shortcuts
       const existing = document.querySelector('.create-postit');
@@ -116,7 +108,7 @@ class PostItNote {
         }
       });
 
-      this.onResize = this.debounce(() => this.adjustNotesPosition(), 200);
+      this.onResize = window.formatters.debounce(() => this.adjustNotesPosition(), 200);
       window.addEventListener('resize', this.onResize);
     }
   
@@ -299,7 +291,7 @@ class PostItNote {
       });
   
       // Auto-save on content change (debounced to reduce frequent writes)
-      const debouncedSave = this.debounce(() => this.saveNotes(), 600);
+      const debouncedSave = window.formatters.debounce(() => this.saveNotes(), 600);
       contentDiv.addEventListener('input', () => {
         note.content = contentDiv.innerHTML;
         debouncedSave();
@@ -340,12 +332,23 @@ class PostItNote {
     }
   
     saveNotes() {
-      localStorage.setItem('postItNotes', JSON.stringify(this.notes));
+      try {
+        localStorage.setItem('postItNotes', JSON.stringify(this.notes));
+      } catch (e) {
+        // localStorage may be disabled or quota exceeded
+        console.warn('Failed to save notes to localStorage:', e.message);
+      }
     }
   
     loadNotes() {
-      const savedNotes = localStorage.getItem('postItNotes');
-      this.notes = savedNotes ? JSON.parse(savedNotes) : [];
+      try {
+        const savedNotes = localStorage.getItem('postItNotes');
+        this.notes = savedNotes ? JSON.parse(savedNotes) : [];
+      } catch (e) {
+        // localStorage may be disabled or data corrupted
+        console.warn('Failed to load notes from localStorage:', e.message);
+        this.notes = [];
+      }
       // Ensure each note has a pastel background color
       let assigned = false;
       this.notes.forEach((note) => {
@@ -367,7 +370,7 @@ class PostItNote {
       let originalHeight;
       let originalX;
       let originalY;
-      let debouncedResizeSave = this.debounce(() => this.saveNotes(), 300);
+      let debouncedResizeSave = window.formatters.debounce(() => this.saveNotes(), 300);
 
       const onMouseMove = (e) => {
         if (!isResizing) return;

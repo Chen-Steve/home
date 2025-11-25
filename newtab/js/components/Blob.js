@@ -24,7 +24,7 @@ class Blob {
     
     this.boundAnimate = this.animate.bind(this);
     this.rafId = null;
-    this.debouncedResize = this.debounce(this.resize.bind(this), 250);
+    this.debouncedResize = window.formatters.debounce(this.resize.bind(this), 250);
     
     this.resize();
     window.addEventListener('resize', this.debouncedResize);
@@ -95,18 +95,6 @@ class Blob {
     this.canvas.removeEventListener('pointermove', this.onPointerMove);
     this.canvas.removeEventListener('pointerup', this.onPointerUp);
     this.canvas.removeEventListener('pointercancel', this.onPointerUp);
-  }
-
-  debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-      const later = () => {
-        clearTimeout(timeout);
-        func(...args);
-      };
-      clearTimeout(timeout);
-      timeout = setTimeout(later, wait);
-    };
   }
 
   resize() {

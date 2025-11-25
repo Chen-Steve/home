@@ -146,7 +146,7 @@ class FloatingBlobs {
 
     // Bind methods for better performance
     this.boundAnimate = this.animate.bind(this);
-    this.debouncedResize = this.debounce(this.resize.bind(this), 250);
+    this.debouncedResize = window.formatters.debounce(this.resize.bind(this), 250);
 
     this.resize();
     this.createBlobs();
@@ -154,18 +154,6 @@ class FloatingBlobs {
 
     // Handle resize
     window.addEventListener('resize', this.debouncedResize);
-  }
-
-  debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-      const later = () => {
-        clearTimeout(timeout);
-        func(...args);
-      };
-      clearTimeout(timeout);
-      timeout = setTimeout(later, wait);
-    };
   }
 
   start() {

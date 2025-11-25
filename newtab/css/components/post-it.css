@@ -17,14 +17,24 @@
   z-index: var(--z-ui, 1000);
 }
 
-/* Remove default focus outline for post-it UI controls */
-.create-postit:focus,
-.create-postit:focus-visible,
-.delete-note:focus,
-.delete-note:focus-visible,
-.post-it :focus,
-.post-it :focus-visible {
-  outline: none;
+/* Custom focus styles for post-it UI controls */
+.create-postit:focus-visible {
+  outline: 2px solid var(--color-fg, #2C3E50);
+  outline-offset: 2px;
+}
+
+.delete-note:focus-visible {
+  outline: 2px solid var(--color-fg, #2C3E50);
+  outline-offset: 1px;
+  border-radius: 2px;
+}
+
+.post-it-content:focus {
+  outline: none; /* Content area doesn't need visible focus ring */
+}
+
+.post-it:focus-visible {
+  box-shadow: 0 0 0 2px var(--color-fg, #2C3E50);
 }
 
 /* Post-it Note Container */

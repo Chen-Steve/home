@@ -3,10 +3,29 @@
  * @typedef {Object} Formatters
  * @property {(bytes:number, decimals?:number)=>string} formatBytes
  * @property {(size:number, min?:number, max?:number)=>number} clampFontSize
+ * @property {(func:Function, wait:number)=>Function} debounce
  */
 
 /** @type {Formatters} */
 const formatters = {
+  /**
+   * Debounce a function to limit how often it can be called.
+   * @param {Function} func - The function to debounce
+   * @param {number} wait - The debounce delay in milliseconds
+   * @returns {Function} The debounced function
+   */
+  debounce: (func, wait) => {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func.apply(this, args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  },
+
   /**
    * Human-readable bytes formatter.
    * @param {number} bytes
