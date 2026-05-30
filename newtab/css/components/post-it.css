@@ -83,6 +83,8 @@ body.dragging-blob .post-it * {
   color: rgba(0, 0, 0, 0.5);
   touch-action: none;
   -webkit-user-drag: none;
+  display: flex;
+  align-items: center;
 }
 
 .delete-note {
@@ -91,6 +93,9 @@ body.dragging-blob .post-it * {
   color: rgba(0, 0, 0, 0.5);
   cursor: pointer;
   padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .delete-note:hover {
@@ -164,6 +169,7 @@ body.dragging-blob .post-it * {
   width: 15px;
   height: 15px;
   cursor: se-resize;
+  touch-action: none;
   background: linear-gradient(135deg, transparent 50%, #0000001a 50%);
 }
 

@@ -12,6 +12,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  color: var(--color-fg, #2C3E50);
   transition: all 0.3s ease;
   z-index: var(--z-ui, 1000);
 }

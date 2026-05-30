@@ -1,44 +1,27 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>My New Tab</title>
 
-  <!-- Core Styles -->
-  <link rel="stylesheet" href="css/main.css">
-
-  <!-- Component Styles -->
-  <link rel="stylesheet" href="css/components/post-it.css">
+  <link rel="stylesheet" href="css/main.css">  <link rel="stylesheet" href="css/components/post-it.css">
   <link rel="stylesheet" href="css/components/clock.css">
   <link rel="stylesheet" href="css/components/shortcuts.css">
-  
-
-  <!-- External Dependencies -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body>
-  <!-- Clock Display -->
-  <h1 id="time">00:00:00</h1>
+  <h1 id="time" aria-live="polite">00:00:00</h1>
 
-  <!-- Background Canvas -->
-  <canvas id="background"></canvas>
+  <canvas id="background" aria-hidden="true"></canvas>
 
-  <!-- Floating Blobs Canvas -->
-  <canvas id="floating-blobs-canvas"></canvas>
-
-  <!-- Utility Scripts -->
-  <script src="js/utils/formatters.js"></script>
+  <script src="js/utils/formatters.js"></script>  <script src="js/utils/icons.js"></script>
   <script src="js/utils/TextFormatter.js"></script>
-
-  <!-- Component Scripts -->
   <script src="js/components/Clock.js"></script>
   <script src="js/components/PostItNote.js"></script>
   <script src="js/components/ShortcutsMenu.js"></script>
   <script src="js/components/Blob.js"></script>
   <script src="js/components/FloatingBlobs.js"></script>
-  
-  <!-- Main Application Script -->
+  <script src="js/components/CanvasScene.js"></script>
   <script src="js/main.js"></script>
 </body>
-</html> 
+</html>
