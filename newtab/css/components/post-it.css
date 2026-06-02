@@ -3,18 +3,25 @@
   bottom: 30px;
   right: 30px;
   border: none;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
+  border-radius: 999px;
+  padding: 10px 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: black;
-  font-size: 1.2rem;
+  color: var(--color-fg, #2C3E50);
+  font-family: inherit;
+  font-size: 0.9rem;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   transition: all 0.2s ease;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   z-index: var(--z-ui, 1000);
+}
+
+.create-postit:hover {
+  background: rgba(255, 255, 255, 0.95);
 }
 
 /* Custom focus styles for post-it UI controls */
@@ -187,7 +194,7 @@ body.dragging-blob .post-it * {
   .create-postit {
     bottom: 20px;
     right: 20px;
-    width: 35px;
-    height: 35px;
+    padding: 8px 14px;
+    font-size: 0.85rem;
   }
 }

@@ -1,0 +1,220 @@
+/* Quick Links Layer (full screen; lets blob drag pass through empty space) */
+.quick-links {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Individual Tile (absolutely positioned + draggable) */
+.quick-link {
+  position: absolute;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 92px;
+  padding: 14px 8px 10px;
+  border: none;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: var(--color-fg, #2C3E50);
+  text-decoration: none;
+  font-family: inherit;
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-drag: none;
+  transition: background 0.2s ease;
+}
+
+.quick-link:hover {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.quick-link.moving {
+  cursor: grabbing;
+  user-select: none;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  transition: none;
+}
+
+.quick-link:focus-visible {
+  outline: 2px solid var(--focus-ring, #3b82f6);
+  outline-offset: 2px;
+}
+
+.quick-link-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  color: rgba(44, 62, 80, 0.7);
+}
+
+.quick-link-icon img {
+  width: 24px;
+  height: 24px;
+  display: block;
+}
+
+.quick-link-name {
+  max-width: 100%;
+  font-size: 0.8rem;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Remove button (appears on hover/focus) */
+.quick-link-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(44, 62, 80, 0.15);
+  color: var(--color-fg, #2C3E50);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.quick-link:hover .quick-link-remove,
+.quick-link-remove:focus-visible {
+  opacity: 1;
+}
+
+.quick-link-remove:hover {
+  background: rgba(44, 62, 80, 0.3);
+}
+
+/* Add button (text-only pill pinned to bottom-right, not draggable) */
+.quick-link-add {
+  position: fixed;
+  left: auto;
+  top: auto;
+  right: 20px;
+  bottom: 88px;
+  flex-direction: row;
+  width: auto;
+  gap: 0;
+  padding: 10px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  background: rgba(255, 255, 255, 0.85);
+  z-index: var(--z-ui, 1000);
+}
+
+.quick-link-add:hover {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+/* Add/Edit Dialog */
+.quick-link-dialog {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.25);
+  z-index: var(--z-top, 2147483647);
+}
+
+.quick-link-dialog.show {
+  display: flex;
+}
+
+.quick-link-dialog-panel {
+  width: min(360px, calc(100vw - 40px));
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 12px;
+  padding: 22px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.2);
+}
+
+.quick-link-dialog-title {
+  margin: 0 0 16px 0;
+  font-size: 1.1rem;
+  color: #2C3E50;
+}
+
+.quick-link-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+  font-size: 0.85rem;
+  color: #2C3E50;
+}
+
+.quick-link-input {
+  padding: 8px 10px;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: #2C3E50;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.quick-link-input:focus {
+  border-color: var(--focus-ring, #3b82f6);
+}
+
+.quick-link-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.quick-link-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.quick-link-cancel {
+  background: rgba(44, 62, 80, 0.1);
+  color: #2C3E50;
+}
+
+.quick-link-cancel:hover {
+  background: rgba(44, 62, 80, 0.2);
+}
+
+.quick-link-save {
+  background: #2C3E50;
+  color: #fff;
+}
+
+.quick-link-save:hover {
+  background: #1f2c3a;
+}
+
+/* Mobile Responsiveness */
+@media screen and (max-width: 768px) {
+  .quick-link {
+    width: 76px;
+  }
+}

@@ -26,6 +26,10 @@ class PostItManager {
   constructor() {
     this.notes = [];
     this.currentNoteIndex = -1;
+    this.topZIndex = parseInt(
+      getComputedStyle(document.documentElement).getPropertyValue('--z-ui'),
+      10
+    ) || 1000;
     this.moveStep = 5;
     this.moveRafId = null;
     this.keyboardMoveOffset = { x: 0, y: 0 };
@@ -58,7 +62,7 @@ class PostItManager {
     const button = document.createElement('button');
     button.className = 'create-postit';
     button.setAttribute('aria-label', 'Create new note');
-    button.textContent = '+';
+    button.textContent = 'Add note';
     button.addEventListener('click', () => {
       this.createNewNote();
     });
@@ -77,6 +81,12 @@ class PostItManager {
   getNoteFromElement(element) {
     const noteId = this.getNoteIdFromElement(element);
     return this.notes.find((n) => n.id === noteId);
+  }
+
+  bringNoteToFront(noteElement) {
+    if (!noteElement) return;
+    this.topZIndex += 1;
+    noteElement.style.zIndex = String(this.topZIndex);
   }
 
   bindEventListeners() {
@@ -126,6 +136,7 @@ class PostItManager {
 
     const nextNote = this.getCurrentNoteElement();
     if (nextNote) {
+      this.bringNoteToFront(nextNote);
       nextNote.classList.add('selected');
       nextNote.querySelector('.post-it-content').focus();
     }
@@ -170,6 +181,8 @@ class PostItManager {
     this.makeNoteResizable(postIt);
     this.setupNoteEvents(postIt, note);
     postIt.setAttribute('tabindex', '-1');
+    this.topZIndex += 1;
+    postIt.style.zIndex = String(this.topZIndex);
   }
 
   makeNoteDraggable(noteElement) {
@@ -261,6 +274,10 @@ class PostItManager {
   setupNoteEvents(noteElement, note) {
     const contentDiv = noteElement.querySelector('.post-it-content');
     const deleteBtn = noteElement.querySelector('.delete-note');
+
+    noteElement.addEventListener('pointerdown', () => {
+      this.bringNoteToFront(noteElement);
+    });
 
     contentDiv.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {

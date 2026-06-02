@@ -26,6 +26,8 @@ class ShortcutsMenu {
     panel.setAttribute('aria-label', 'Keyboard shortcuts');
 
     const shortcuts = [
+      { keys: ['Alt', 'F'], description: 'Open search bar' },
+      { keys: ['Ctrl', 'S'], description: 'Add shortcut' },
       { keys: ['Alt', 'A'], description: 'Create new note' },
       { keys: ['Alt', 'S'], description: 'Select next note' },
       { keys: ['Alt', 'D'], description: 'Delete selected note' },

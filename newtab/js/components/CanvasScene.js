@@ -4,7 +4,6 @@ class CanvasScene {
     this.ctx = canvas.getContext('2d');
     this.dpr = window.devicePixelRatio || 1;
     this.mainBlob = new MainBlob(this);
-    this.floatingGroup = new FloatingBlobGroup(this);
     this.rafId = null;
     this.reducedMotionMq = window.matchMedia('(prefers-reduced-motion: reduce)');
     this.boundAnimate = this.animate.bind(this);
@@ -39,7 +38,6 @@ class CanvasScene {
     this.canvas.style.height = `${h}px`;
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     this.mainBlob.onResize(w, h);
-    this.floatingGroup.onResize(w, h);
     this.drawFrame();
   }
 
@@ -69,15 +67,10 @@ class CanvasScene {
     const h = this.height;
     this.ctx.clearRect(0, 0, w, h);
     this.mainBlob.draw(this.ctx);
-    this.ctx.save();
-    this.ctx.globalAlpha = 0.8;
-    this.floatingGroup.draw(this.ctx);
-    this.ctx.restore();
   }
 
   animate() {
     this.mainBlob.update();
-    this.floatingGroup.update();
     this.drawFrame();
     this.rafId = requestAnimationFrame(this.boundAnimate);
   }

@@ -14,7 +14,7 @@
   justify-content: center;
   color: var(--color-fg, #2C3E50);
   transition: all 0.3s ease;
-  z-index: var(--z-ui, 1000);
+  z-index: var(--z-top, 2147483647);
 }
 
 .shortcuts-button:hover {
@@ -38,7 +38,7 @@
   opacity: 0;
   visibility: hidden;
   transition: all 0.3s ease;
-  z-index: var(--z-ui, 1000);
+  z-index: var(--z-top, 2147483647);
 }
 
 .shortcuts-panel.show {
