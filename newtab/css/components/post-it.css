@@ -20,12 +20,65 @@
   z-index: var(--z-ui, 1000);
 }
 
+.postit-trash-toggle {
+  position: fixed;
+  bottom: 20px;
+  left: 118px;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--color-fg, #2C3E50);
+  font-family: inherit;
+  font-size: 0.9rem;
+  background: rgba(44, 62, 80, 0.1);
+  transition: all 0.3s ease;
+  z-index: var(--z-ui, 1000);
+}
+
 .create-postit:hover {
   background: rgba(255, 255, 255, 0.95);
 }
 
+.postit-trash-toggle:hover:not(:disabled) {
+  background: rgba(44, 62, 80, 0.2);
+}
+
+.postit-trash-toggle:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.postit-trash-count {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #2C3E50;
+  color: #fff;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.postit-trash-count:not(:empty) {
+  display: flex;
+}
+
 /* Custom focus styles for post-it UI controls */
-.create-postit:focus-visible {
+.create-postit:focus-visible,
+.postit-trash-toggle:focus-visible {
   outline: 2px solid var(--color-fg, #2C3E50);
   outline-offset: 2px;
 }
@@ -107,6 +160,163 @@ body.dragging-blob .post-it * {
 
 .delete-note:hover {
   color: rgba(0, 0, 0, 0.8);
+}
+
+.postit-trash-dialog {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.25);
+  z-index: var(--z-top, 2147483647);
+}
+
+.postit-trash-dialog.show {
+  display: flex;
+}
+
+.postit-trash-panel {
+  width: min(480px, calc(100vw - 40px));
+  max-height: min(640px, calc(100vh - 40px));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 12px;
+  padding: 22px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.2);
+}
+
+.postit-trash-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.postit-trash-title {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #2C3E50;
+}
+
+.postit-trash-close {
+  border: none;
+  background: transparent;
+  color: rgba(0, 0, 0, 0.55);
+  cursor: pointer;
+  padding: 4px;
+}
+
+.postit-trash-close:hover {
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.postit-trash-bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.postit-trash-select-all {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: auto;
+  color: #2C3E50;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.postit-trash-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.postit-trash-empty {
+  margin: 6px 0 0;
+  color: rgba(44, 62, 80, 0.75);
+}
+
+.postit-trash-item {
+  border: 1px solid rgba(44, 62, 80, 0.12);
+  border-radius: 10px;
+  padding: 12px;
+  background: rgba(255, 250, 220, 0.5);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.postit-trash-item-checkbox {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.postit-trash-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.postit-trash-preview {
+  color: #2C3E50;
+  font-size: 0.95rem;
+  line-height: 1.35;
+  max-height: 2.7em;
+  overflow: hidden;
+}
+
+.postit-trash-meta {
+  margin-top: 6px;
+  color: rgba(44, 62, 80, 0.65);
+  font-size: 0.78rem;
+}
+
+.postit-trash-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.postit-trash-action {
+  border: none;
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.postit-trash-action:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.postit-trash-restore {
+  background: #2C3E50;
+  color: #fff;
+}
+
+.postit-trash-restore:hover:not(:disabled) {
+  background: #1f2c3a;
+}
+
+.postit-trash-delete {
+  background: rgba(44, 62, 80, 0.1);
+  color: #2C3E50;
+}
+
+.postit-trash-delete:hover:not(:disabled) {
+  background: rgba(44, 62, 80, 0.2);
 }
 
 /* Post-it Content */
@@ -196,5 +406,12 @@ body.dragging-blob .post-it * {
     right: 20px;
     padding: 8px 14px;
     font-size: 0.85rem;
+  }
+
+  .postit-trash-toggle {
+    bottom: 15px;
+    left: 103px;
+    width: 35px;
+    height: 35px;
   }
 }

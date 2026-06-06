@@ -1,5 +1,6 @@
 const NOTE_STORAGE_KEY = 'postItNotes';
-const NOTE_STORAGE_VERSION = 1;
+const NOTE_STORAGE_VERSION = 2;
+const MAX_DELETED_NOTES = 100;
 
 class PostItNote {
   constructor(id, content, position) {
@@ -25,6 +26,8 @@ class PostItNote {
 class PostItManager {
   constructor() {
     this.notes = [];
+    this.deletedNotes = [];
+    this.selectedDeletedNoteIds = new Set();
     this.currentNoteIndex = -1;
     this.topZIndex = parseInt(
       getComputedStyle(document.documentElement).getPropertyValue('--z-ui'),
@@ -49,6 +52,8 @@ class PostItManager {
     ];
     this.bindEventListeners();
     this.createCreateNoteButton();
+    this.createTrashButton();
+    this.createTrashDialog();
     this.loadNotes();
   }
 
@@ -69,6 +74,90 @@ class PostItManager {
     document.body.appendChild(button);
   }
 
+  createTrashButton() {
+    const existing = document.querySelector('.postit-trash-toggle');
+    if (existing) {
+      this.trashButton = existing;
+      this.trashCount = existing.querySelector('.postit-trash-count');
+      return;
+    }
+
+    const button = document.createElement('button');
+    button.className = 'postit-trash-toggle';
+    button.type = 'button';
+    button.setAttribute('aria-label', 'Open deleted notes');
+    button.innerHTML = `${Icons.trash()}<span class="postit-trash-count" aria-hidden="true"></span>`;
+    button.addEventListener('click', () => this.openTrashDialog());
+    document.body.appendChild(button);
+    this.trashButton = button;
+    this.trashCount = button.querySelector('.postit-trash-count');
+    this.updateTrashButton();
+  }
+
+  createTrashDialog() {
+    const existing = document.querySelector('.postit-trash-dialog');
+    if (existing) {
+      this.trashDialog = existing;
+      this.trashList = existing.querySelector('.postit-trash-list');
+      return;
+    }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'postit-trash-dialog';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Deleted notes');
+    overlay.innerHTML = `
+      <div class="postit-trash-panel">
+        <div class="postit-trash-header">
+          <h3 class="postit-trash-title">Deleted notes</h3>
+          <button class="postit-trash-close" type="button" aria-label="Close deleted notes">${Icons.times()}</button>
+        </div>
+        <div class="postit-trash-bulk-actions">
+          <label class="postit-trash-select-all">
+            <input type="checkbox" class="postit-trash-select-all-input" />
+            <span>Select all</span>
+          </label>
+          <button class="postit-trash-action postit-trash-restore-selected" type="button">Restore selected</button>
+          <button class="postit-trash-action postit-trash-delete-selected" type="button">Delete selected</button>
+        </div>
+        <div class="postit-trash-list"></div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+    this.trashDialog = overlay;
+    this.trashList = overlay.querySelector('.postit-trash-list');
+    this.selectAllTrashInput = overlay.querySelector('.postit-trash-select-all-input');
+    this.restoreSelectedButton = overlay.querySelector('.postit-trash-restore-selected');
+    this.deleteSelectedButton = overlay.querySelector('.postit-trash-delete-selected');
+
+    overlay.querySelector('.postit-trash-close').addEventListener('click', () => this.closeTrashDialog());
+    this.selectAllTrashInput.addEventListener('change', () => {
+      this.setAllDeletedNotesSelected(this.selectAllTrashInput.checked);
+    });
+    this.restoreSelectedButton.addEventListener('click', () => this.restoreSelectedDeletedNotes());
+    this.deleteSelectedButton.addEventListener('click', () => this.deleteSelectedForever());
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) this.closeTrashDialog();
+    });
+    overlay.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') this.closeTrashDialog();
+    });
+  }
+
+  updateTrashButton() {
+    if (!this.trashButton) return;
+    const count = this.deletedNotes.length;
+    if (this.trashCount) {
+      this.trashCount.textContent = count > 0 ? String(count) : '';
+    }
+    this.trashButton.setAttribute('aria-label', count > 0
+      ? `Open deleted notes, ${count} in trash`
+      : 'Open deleted notes');
+    this.trashButton.disabled = count === 0;
+  }
+
   getRandomNoteColor() {
     const randomIndex = Math.floor(Math.random() * this.pastelColors.length);
     return this.pastelColors[randomIndex];
@@ -81,6 +170,24 @@ class PostItManager {
   getNoteFromElement(element) {
     const noteId = this.getNoteIdFromElement(element);
     return this.notes.find((n) => n.id === noteId);
+  }
+
+  getNotePreview(note) {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = note.content || '';
+    const text = wrapper.textContent.trim();
+    return text || 'Blank note';
+  }
+
+  formatDeletedAt(deletedAt) {
+    if (!deletedAt) return 'Deleted recently';
+    const date = new Date(deletedAt);
+    if (Number.isNaN(date.getTime())) return 'Deleted recently';
+    return `Deleted ${date.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    })}`;
   }
 
   bringNoteToFront(noteElement) {
@@ -298,15 +405,7 @@ class PostItManager {
       this.saveNotes();
     });
 
-    deleteBtn.addEventListener('click', () => {
-      noteElement.remove();
-      this.notes = this.notes.filter((n) => n.id !== note.id);
-      if (this.notes[this.currentNoteIndex]?.id === note.id) {
-        this.currentNoteIndex = Math.min(this.currentNoteIndex, this.notes.length - 1);
-        if (this.notes.length === 0) this.currentNoteIndex = -1;
-      }
-      this.saveNotes();
-    });
+    deleteBtn.addEventListener('click', () => this.moveNoteToTrash(note, noteElement));
   }
 
   adjustNotesPosition() {
@@ -335,21 +434,37 @@ class PostItManager {
     };
   }
 
+  normalizeDeletedNote(raw) {
+    return {
+      ...this.normalizeNote(raw),
+      deletedAt: raw.deletedAt || new Date().toISOString()
+    };
+  }
+
   migrateStoredNotes(parsed) {
     if (Array.isArray(parsed)) {
-      return parsed.map((note) => this.normalizeNote(note));
+      return {
+        notes: parsed.map((note) => this.normalizeNote(note)),
+        deletedNotes: []
+      };
     }
     if (parsed && typeof parsed === 'object' && Array.isArray(parsed.notes)) {
-      return parsed.notes.map((note) => this.normalizeNote(note));
+      return {
+        notes: parsed.notes.map((note) => this.normalizeNote(note)),
+        deletedNotes: Array.isArray(parsed.deletedNotes)
+          ? parsed.deletedNotes.map((note) => this.normalizeDeletedNote(note))
+          : []
+      };
     }
-    return [];
+    return { notes: [], deletedNotes: [] };
   }
 
   saveNotes() {
     try {
       localStorage.setItem(NOTE_STORAGE_KEY, JSON.stringify({
         version: NOTE_STORAGE_VERSION,
-        notes: this.notes
+        notes: this.notes,
+        deletedNotes: this.deletedNotes
       }));
     } catch (e) {
       console.warn('Failed to save notes to localStorage:', e.message);
@@ -362,10 +477,13 @@ class PostItManager {
       const savedNotes = localStorage.getItem(NOTE_STORAGE_KEY);
       const parsed = savedNotes ? JSON.parse(savedNotes) : null;
       if (Array.isArray(parsed)) migratedFromLegacy = true;
-      this.notes = this.migrateStoredNotes(parsed);
+      const migrated = this.migrateStoredNotes(parsed);
+      this.notes = migrated.notes;
+      this.deletedNotes = migrated.deletedNotes.slice(0, MAX_DELETED_NOTES);
     } catch (e) {
       console.warn('Failed to load notes from localStorage:', e.message);
       this.notes = [];
+      this.deletedNotes = [];
     }
 
     let assigned = false;
@@ -380,6 +498,205 @@ class PostItManager {
     if (assigned || migratedFromLegacy) {
       this.saveNotes();
     }
+    this.updateTrashButton();
+    this.renderTrashDialog();
+  }
+
+  moveNoteToTrash(note, noteElement = null) {
+    if (!note) return;
+    const activeNoteId = this.notes[this.currentNoteIndex]?.id;
+    const deletedNote = {
+      ...this.normalizeNote(note),
+      deletedAt: new Date().toISOString()
+    };
+
+    if (noteElement) noteElement.remove();
+    this.notes = this.notes.filter((n) => n.id !== note.id);
+    this.deletedNotes = [
+      deletedNote,
+      ...this.deletedNotes.filter((n) => n.id !== note.id)
+    ].slice(0, MAX_DELETED_NOTES);
+
+    if (activeNoteId === note.id || this.currentNoteIndex >= this.notes.length) {
+      this.currentNoteIndex = Math.min(this.currentNoteIndex, this.notes.length - 1);
+      if (this.notes.length === 0) this.currentNoteIndex = -1;
+    }
+
+    this.saveNotes();
+    this.updateTrashButton();
+    this.renderTrashDialog();
+  }
+
+  openTrashDialog() {
+    this.renderTrashDialog();
+    this.trashDialog.classList.add('show');
+    this.trashDialog.querySelector('.postit-trash-close').focus();
+  }
+
+  closeTrashDialog() {
+    this.trashDialog.classList.remove('show');
+  }
+
+  renderTrashDialog() {
+    if (!this.trashList) return;
+    const deletedIds = new Set(this.deletedNotes.map((note) => note.id));
+    this.selectedDeletedNoteIds = new Set(
+      [...this.selectedDeletedNoteIds].filter((id) => deletedIds.has(id))
+    );
+    this.updateTrashBulkActions();
+    this.trashList.replaceChildren();
+
+    if (this.deletedNotes.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'postit-trash-empty';
+      empty.textContent = 'No deleted notes.';
+      this.trashList.appendChild(empty);
+      return;
+    }
+
+    this.deletedNotes.forEach((note) => {
+      const item = document.createElement('article');
+      item.className = 'postit-trash-item';
+
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.className = 'postit-trash-item-checkbox';
+      checkbox.setAttribute('aria-label', `Select ${this.getNotePreview(note)}`);
+      checkbox.checked = this.selectedDeletedNoteIds.has(note.id);
+      checkbox.addEventListener('change', () => {
+        this.setDeletedNoteSelected(note.id, checkbox.checked);
+      });
+
+      const preview = document.createElement('div');
+      preview.className = 'postit-trash-preview';
+      preview.textContent = this.getNotePreview(note);
+
+      const meta = document.createElement('div');
+      meta.className = 'postit-trash-meta';
+      meta.textContent = this.formatDeletedAt(note.deletedAt);
+
+      const actions = document.createElement('div');
+      actions.className = 'postit-trash-actions';
+
+      const restoreButton = document.createElement('button');
+      restoreButton.type = 'button';
+      restoreButton.className = 'postit-trash-action postit-trash-restore';
+      restoreButton.textContent = 'Restore';
+      restoreButton.addEventListener('click', () => this.restoreDeletedNote(note.id));
+
+      const deleteButton = document.createElement('button');
+      deleteButton.type = 'button';
+      deleteButton.className = 'postit-trash-action postit-trash-delete';
+      deleteButton.textContent = 'Delete forever';
+      deleteButton.addEventListener('click', () => this.deleteForever(note.id));
+
+      actions.append(restoreButton, deleteButton);
+      const body = document.createElement('div');
+      body.className = 'postit-trash-item-body';
+      body.append(preview, meta, actions);
+
+      item.append(checkbox, body);
+      this.trashList.appendChild(item);
+    });
+  }
+
+  updateTrashBulkActions() {
+    const totalCount = this.deletedNotes.length;
+    const selectedCount = this.selectedDeletedNoteIds.size;
+    const hasSelected = selectedCount > 0;
+
+    if (this.selectAllTrashInput) {
+      this.selectAllTrashInput.checked = totalCount > 0 && selectedCount === totalCount;
+      this.selectAllTrashInput.indeterminate = selectedCount > 0 && selectedCount < totalCount;
+      this.selectAllTrashInput.disabled = totalCount === 0;
+    }
+
+    if (this.restoreSelectedButton) {
+      this.restoreSelectedButton.disabled = !hasSelected;
+      this.restoreSelectedButton.textContent = hasSelected
+        ? `Restore selected (${selectedCount})`
+        : 'Restore selected';
+    }
+
+    if (this.deleteSelectedButton) {
+      this.deleteSelectedButton.disabled = !hasSelected;
+      this.deleteSelectedButton.textContent = hasSelected
+        ? `Delete selected (${selectedCount})`
+        : 'Delete selected';
+    }
+  }
+
+  setDeletedNoteSelected(id, selected) {
+    if (selected) {
+      this.selectedDeletedNoteIds.add(id);
+    } else {
+      this.selectedDeletedNoteIds.delete(id);
+    }
+    this.renderTrashDialog();
+  }
+
+  setAllDeletedNotesSelected(selected) {
+    this.selectedDeletedNoteIds = selected
+      ? new Set(this.deletedNotes.map((note) => note.id))
+      : new Set();
+    this.renderTrashDialog();
+  }
+
+  restoreDeletedNote(id) {
+    const note = this.deletedNotes.find((n) => n.id === id);
+    if (!note) return;
+
+    const restoredNote = this.normalizeNote(note);
+    if (this.notes.some((n) => n.id === restoredNote.id)) {
+      restoredNote.id = this.generateNoteId();
+    }
+
+    this.deletedNotes = this.deletedNotes.filter((n) => n.id !== id);
+    this.selectedDeletedNoteIds.delete(id);
+    this.notes.push(restoredNote);
+    this.renderNote(restoredNote);
+    this.adjustNotesPosition();
+    this.saveNotes();
+    this.updateTrashButton();
+    this.renderTrashDialog();
+  }
+
+  deleteForever(id) {
+    this.deletedNotes = this.deletedNotes.filter((note) => note.id !== id);
+    this.selectedDeletedNoteIds.delete(id);
+    this.saveNotes();
+    this.updateTrashButton();
+    this.renderTrashDialog();
+  }
+
+  restoreSelectedDeletedNotes() {
+    const selectedIds = [...this.selectedDeletedNoteIds];
+    selectedIds.forEach((id) => {
+      const note = this.deletedNotes.find((n) => n.id === id);
+      if (!note) return;
+
+      const restoredNote = this.normalizeNote(note);
+      if (this.notes.some((n) => n.id === restoredNote.id)) {
+        restoredNote.id = this.generateNoteId();
+      }
+      this.notes.push(restoredNote);
+      this.renderNote(restoredNote);
+    });
+
+    this.deletedNotes = this.deletedNotes.filter((note) => !this.selectedDeletedNoteIds.has(note.id));
+    this.selectedDeletedNoteIds.clear();
+    this.adjustNotesPosition();
+    this.saveNotes();
+    this.updateTrashButton();
+    this.renderTrashDialog();
+  }
+
+  deleteSelectedForever() {
+    this.deletedNotes = this.deletedNotes.filter((note) => !this.selectedDeletedNoteIds.has(note.id));
+    this.selectedDeletedNoteIds.clear();
+    this.saveNotes();
+    this.updateTrashButton();
+    this.renderTrashDialog();
   }
 
   makeNoteResizable(noteElement) {
@@ -447,9 +764,7 @@ class PostItManager {
     if (!noteElement) return;
 
     const noteToDelete = this.notes[this.currentNoteIndex];
-    noteElement.remove();
-    this.notes = this.notes.filter((n) => n.id !== noteToDelete.id);
-    this.saveNotes();
+    this.moveNoteToTrash(noteToDelete, noteElement);
 
     if (this.currentNoteIndex >= this.notes.length) {
       this.currentNoteIndex = this.notes.length - 1;
