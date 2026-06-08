@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Simple Tab",
-  "version": "1.5.1",
-  "description": "A Custom New Tab Extension",
+  "name": "Note Tab",
+  "version": "1.5.2",
+  "description": "Another Tab Extension",
   "chrome_url_overrides": {
     "newtab": "newtab/index.html"
   }

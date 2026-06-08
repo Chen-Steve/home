@@ -18,6 +18,7 @@ class Clock {
   }
 
   startClock() {
+    if (this.timerId != null || this.rafId != null) return;
     const tick = () => {
       // Driftless ticking: schedule next tick based on the next whole second
       const now = Date.now();

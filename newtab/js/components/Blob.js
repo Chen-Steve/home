@@ -5,6 +5,9 @@ class MainBlob {
     this.numPoints = 25;
     this.angle = (Math.PI * 2) / this.numPoints;
     this.points = new Array(this.numPoints);
+    for (let i = 0; i < this.numPoints; i++) {
+      this.points[i] = { x: 0, y: 0 };
+    }
     this.animationSpeed = 0.002;
     this.time = 0;
     this.rotation = 0;
@@ -18,6 +21,9 @@ class MainBlob {
     this.dragSpinSpeed = 0.06;
     this.centerX = 0;
     this.centerY = 0;
+    this.gradient = null;
+    this.gradientCx = NaN;
+    this.gradientCy = NaN;
   }
 
   onResize(width, height) {
@@ -97,9 +103,9 @@ class MainBlob {
     for (let i = 0; i < this.numPoints; i++) {
       const noise = Math.sin(this.time + i) * 15;
       const currentAngle = this.angle * i + this.rotation;
-      const x = cx + Math.cos(currentAngle) * (this.radius + noise);
-      const y = cy + Math.sin(currentAngle) * (this.radius + noise);
-      this.points[i] = { x, y };
+      const point = this.points[i];
+      point.x = cx + Math.cos(currentAngle) * (this.radius + noise);
+      point.y = cy + Math.sin(currentAngle) * (this.radius + noise);
     }
 
     const firstPoint = this.points[0];
@@ -113,10 +119,14 @@ class MainBlob {
 
     ctx.closePath();
 
-    const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, this.radius * 1.5);
-    gradient.addColorStop(0, 'rgba(44, 62, 80, 0.1)');
-    gradient.addColorStop(1, 'rgba(44, 62, 80, 0.05)');
-    ctx.fillStyle = gradient;
+    if (!this.gradient || cx !== this.gradientCx || cy !== this.gradientCy) {
+      this.gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, this.radius * 1.5);
+      this.gradient.addColorStop(0, 'rgba(44, 62, 80, 0.1)');
+      this.gradient.addColorStop(1, 'rgba(44, 62, 80, 0.05)');
+      this.gradientCx = cx;
+      this.gradientCy = cy;
+    }
+    ctx.fillStyle = this.gradient;
     ctx.fill();
   }
 
