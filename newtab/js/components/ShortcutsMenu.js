@@ -32,7 +32,7 @@ class ShortcutsMenu {
       { keys: ['Alt', 'S'], description: 'Select next note' },
       { keys: ['Alt', 'D'], description: 'Delete selected note' },
       { keys: ['Arrow keys'], description: 'Move selected note' },
-      { keys: ['Shift', 'Enter'], description: 'New line in note' },
+      { keys: ['Enter'], description: 'New line in note' },
       { keys: ['Alt', '+'], description: 'Increase font size' },
       { keys: ['Alt', '-'], description: 'Decrease font size' },
       { keys: ['Ctrl', 'B'], description: 'Bold text' },

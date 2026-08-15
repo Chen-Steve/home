@@ -271,7 +271,6 @@ class PostItManager {
 
     postIt.innerHTML = `
       <div class="post-it-header">
-        <div class="drag-handle">${Icons.gripLines()}</div>
         <button class="delete-note" type="button" aria-label="Delete note">${Icons.times()}</button>
       </div>
       <div class="post-it-content" contenteditable="true" placeholder="Write your note...">${note.content}</div>
@@ -293,7 +292,6 @@ class PostItManager {
   }
 
   makeNoteDraggable(noteElement) {
-    const handle = noteElement.querySelector('.drag-handle');
     let isDragging = false;
     let startPointerX = 0;
     let startPointerY = 0;
@@ -356,7 +354,7 @@ class PostItManager {
       } catch (_) {}
     };
 
-    handle.addEventListener('pointerdown', (e) => {
+    const startDrag = (e) => {
       isDragging = true;
       const rect = noteElement.getBoundingClientRect();
       startPointerX = e.clientX;
@@ -375,6 +373,16 @@ class PostItManager {
       window.addEventListener('pointermove', onPointerMove);
       window.addEventListener('pointerup', onPointerUp, { once: true });
       window.addEventListener('pointercancel', onPointerUp, { once: true });
+    };
+
+    noteElement.addEventListener('pointerdown', (e) => {
+      if (e.button !== 2) return;
+      if (e.target.closest('.delete-note, .resize-handle')) return;
+      startDrag(e);
+    });
+
+    noteElement.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
     });
   }
 
@@ -384,12 +392,6 @@ class PostItManager {
 
     noteElement.addEventListener('pointerdown', () => {
       this.bringNoteToFront(noteElement);
-    });
-
-    contentDiv.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-      }
     });
 
     const debouncedSave = window.formatters.debounce(() => this.saveNotes(), 600);

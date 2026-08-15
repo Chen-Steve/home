@@ -63,8 +63,6 @@ class SearchBar {
     bar.id = 'search-bar';
     bar.setAttribute('role', 'search');
     bar.innerHTML = `
-      <div class="search-drag-handle" aria-label="Move search bar">${Icons.gripLines()}</div>
-      <span class="search-icon" aria-hidden="true">${Icons.search(16)}</span>
       <input class="search-input" type="text" placeholder="Search the web..." aria-label="Search the web" autocomplete="off" spellcheck="false" />
       <button class="search-close" type="button" aria-label="Hide search bar">${Icons.times()}</button>
     `;
@@ -148,7 +146,6 @@ class SearchBar {
   }
 
   makeDraggable() {
-    const handle = this.bar.querySelector('.search-drag-handle');
     let isDragging = false;
     let startPointerX = 0;
     let startPointerY = 0;
@@ -172,11 +169,13 @@ class SearchBar {
       this.saveState();
       window.removeEventListener('pointermove', onPointerMove);
       try {
-        if (e.pointerId != null) handle.releasePointerCapture(e.pointerId);
+        if (e.pointerId != null) this.bar.releasePointerCapture(e.pointerId);
       } catch (_) {}
     };
 
-    handle.addEventListener('pointerdown', (e) => {
+    this.bar.addEventListener('pointerdown', (e) => {
+      if (e.button !== 2) return;
+      if (e.target.closest('.search-close')) return;
       isDragging = true;
       const rect = this.bar.getBoundingClientRect();
       startPointerX = e.clientX;
@@ -186,11 +185,15 @@ class SearchBar {
       this.bar.classList.add('moving');
       e.preventDefault();
       try {
-        if (e.pointerId != null) handle.setPointerCapture(e.pointerId);
+        if (e.pointerId != null) this.bar.setPointerCapture(e.pointerId);
       } catch (_) {}
       window.addEventListener('pointermove', onPointerMove);
       window.addEventListener('pointerup', onPointerUp, { once: true });
       window.addEventListener('pointercancel', onPointerUp, { once: true });
+    });
+
+    this.bar.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
     });
   }
 

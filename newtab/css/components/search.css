@@ -5,7 +5,7 @@
   left: 70px;
   width: 40px;
   height: 40px;
-  border-radius: 50%;
+  border-radius: 12px;
   background: rgba(44, 62, 80, 0.1);
   border: none;
   cursor: pointer;
@@ -39,8 +39,8 @@
   align-items: center;
   gap: 6px;
   width: min(420px, calc(100vw - 40px));
-  padding: 6px 10px;
-  border-radius: 999px;
+  padding: 6px 10px 6px 16px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
@@ -57,24 +57,8 @@
   user-select: none;
 }
 
-.search-drag-handle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: grab;
-  padding: 4px;
-  color: rgba(44, 62, 80, 0.5);
-  touch-action: none;
-}
-
-.search-drag-handle:active {
-  cursor: grabbing;
-}
-
-.search-icon {
-  display: flex;
-  align-items: center;
-  color: rgba(44, 62, 80, 0.6);
+.search-bar.moving .search-input {
+  pointer-events: none;
 }
 
 .search-input {
@@ -111,8 +95,7 @@
   background: rgba(44, 62, 80, 0.08);
 }
 
-.search-close:focus-visible,
-.search-drag-handle:focus-visible {
+.search-close:focus-visible {
   outline: 2px solid var(--focus-ring, #3b82f6);
   outline-offset: 1px;
 }

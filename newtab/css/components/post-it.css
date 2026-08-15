@@ -3,7 +3,7 @@
   bottom: 30px;
   right: 30px;
   border: none;
-  border-radius: 999px;
+  border-radius: 12px;
   padding: 10px 18px;
   display: flex;
   align-items: center;
@@ -27,7 +27,7 @@
   width: 40px;
   height: 40px;
   border: none;
-  border-radius: 50%;
+  border-radius: 12px;
   padding: 0;
   display: flex;
   align-items: center;
@@ -121,6 +121,10 @@
   user-select: none;
 }
 
+.post-it.moving .post-it-content {
+  pointer-events: none;
+}
+
 /* While dragging the blob, let pointer events flow to the canvas */
 body.dragging-blob .post-it,
 body.dragging-blob .post-it * {
@@ -130,21 +134,11 @@ body.dragging-blob .post-it * {
 /* Post-it Header */
 .post-it-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   padding: 5px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.1);
   height: 20px;
-}
-
-.drag-handle {
-  cursor: grab;
-  padding: 4px;
-  color: rgba(0, 0, 0, 0.5);
-  touch-action: none;
-  -webkit-user-drag: none;
-  display: flex;
-  align-items: center;
 }
 
 .delete-note {
