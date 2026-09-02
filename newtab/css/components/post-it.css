@@ -329,11 +329,6 @@ body.dragging-blob .post-it * {
   scrollbar-color: rgba(0, 0, 0, 0.3) rgba(0, 0, 0, 0.05);
 }
 
-.post-it-content[placeholder]:empty:before {
-  content: attr(placeholder);
-  color: #999;
-}
-
 /* Text Formatting */
 .post-it-content strong {
   font-weight: bold;

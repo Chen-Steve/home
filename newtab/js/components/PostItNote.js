@@ -255,7 +255,7 @@ class PostItManager {
       <div class="post-it-header">
         <button class="delete-note" type="button" aria-label="Delete note">${Icons.times()}</button>
       </div>
-      <div class="post-it-content" contenteditable="true" placeholder="Write your note...">${note.content}</div>
+      <div class="post-it-content" contenteditable="true">${note.content}</div>
       <div class="resize-handle" aria-hidden="true"></div>
     `;
 
@@ -449,6 +449,42 @@ class PostItManager {
     });
   }
 
+  createWelcomeNote() {
+    const width = 320;
+    const height = 420;
+    return {
+      id: this.generateNoteId(),
+      fontSize: '15px',
+      color: 'rgba(255, 245, 157, 0.9)',
+      size: { width, height },
+      position: formatters.clampToViewport(
+        Math.max(24, Math.round(window.innerWidth / 2 - width - 40)),
+        Math.max(88, Math.round(window.innerHeight * 0.16)),
+        width,
+        height
+      ),
+      content: [
+        '<strong>Welcome to Note Tab</strong>',
+        'A few tips to get started:',
+        '',
+        '<strong>Notes</strong>',
+        '• Add note (or Alt+A) to create one',
+        '• Right-click and drag to move',
+        '• Drag the bottom-right corner to resize',
+        '• Enter starts a new line',
+        '',
+        '<strong>Search &amp; shortcuts</strong>',
+        '• Alt+F opens search — right-click to move it',
+        '• Ctrl+S adds a website shortcut you can drag around',
+        '',
+        '<strong>Tools</strong>',
+        '• The arrow in the bottom-left shows search, trash, and keyboard shortcuts',
+        '',
+        'Delete this note whenever you like.'
+      ].join('<br>')
+    };
+  }
+
   loadNotes() {
     let migratedFromLegacy = false;
     const parsed = formatters.readStorage(NOTE_STORAGE_KEY, null);
@@ -456,6 +492,11 @@ class PostItManager {
     const migrated = this.migrateStoredNotes(parsed);
     this.notes = migrated.notes;
     this.deletedNotes = migrated.deletedNotes.slice(0, MAX_DELETED_NOTES);
+
+    const isFirstRun = parsed == null;
+    if (isFirstRun) {
+      this.notes.push(this.createWelcomeNote());
+    }
 
     let assigned = false;
     this.notes.forEach((note) => {
@@ -466,7 +507,7 @@ class PostItManager {
       this.renderNote(note);
     });
 
-    if (assigned || migratedFromLegacy) {
+    if (assigned || migratedFromLegacy || isFirstRun) {
       this.saveNotes();
     }
     this.updateTrashButton();

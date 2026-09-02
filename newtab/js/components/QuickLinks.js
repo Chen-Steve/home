@@ -218,13 +218,12 @@ class QuickLinks {
       if (dragging) {
         tile.classList.remove('moving');
         this.saveLinks();
-        tile.addEventListener('click', this.suppressClick, { capture: true, once: true });
       }
       dragging = false;
     };
 
     tile.addEventListener('pointerdown', (e) => {
-      if (e.button != null && e.button !== 0) return;
+      if (e.button !== 2) return;
       if (e.target.closest('.quick-link-remove')) return;
       const rect = tile.getBoundingClientRect();
       startPointerX = e.clientX;
@@ -232,18 +231,15 @@ class QuickLinks {
       startLeft = rect.left;
       startTop = rect.top;
       dragging = false;
+      e.preventDefault();
       formatters.capturePointer(tile, e);
       window.addEventListener('pointermove', onPointerMove);
       window.addEventListener('pointerup', onPointerUp, { once: true });
       window.addEventListener('pointercancel', onPointerUp, { once: true });
     });
 
+    tile.addEventListener('contextmenu', (e) => e.preventDefault());
     tile.addEventListener('dragstart', (e) => e.preventDefault());
-  }
-
-  suppressClick(e) {
-    e.preventDefault();
-    e.stopPropagation();
   }
 
   removeLink(id) {
