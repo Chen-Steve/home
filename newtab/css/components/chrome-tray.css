@@ -1,0 +1,52 @@
+.chrome-tray {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: var(--z-ui, 1000);
+}
+
+.chrome-tray-toggle {
+  flex-shrink: 0;
+}
+
+.chrome-tray-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 180px;
+  overflow: visible;
+  opacity: 1;
+  transition: max-width 0.25s ease, opacity 0.2s ease, gap 0.25s ease;
+}
+
+.chrome-tray.collapsed .chrome-tray-tools {
+  max-width: 0;
+  gap: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.chrome-tray-toggle .icon {
+  transition: transform 0.25s ease;
+}
+
+.chrome-tray.collapsed .chrome-tray-toggle .icon {
+  transform: rotate(180deg);
+}
+
+@media screen and (max-width: 768px) {
+  .chrome-tray {
+    bottom: 15px;
+    left: 15px;
+    gap: 6px;
+  }
+
+  .chrome-tray-tools {
+    gap: 6px;
+    max-width: 140px;
+  }
+}

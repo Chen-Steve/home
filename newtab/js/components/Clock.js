@@ -46,8 +46,3 @@ class Clock {
     this.stopClock();
   }
 }
-
-// Initialize when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-  window.clock = new Clock();
-}, { once: true });

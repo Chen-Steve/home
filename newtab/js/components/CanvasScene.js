@@ -1,6 +1,7 @@
 class CanvasScene {
   static TARGET_FPS = 30;
   static IDLE_TIMEOUT_MS = 30000;
+  static ACTIVITY_EVENTS = ['pointerdown', 'keydown', 'wheel'];
 
   constructor(canvas) {
     this.canvas = canvas;
@@ -15,7 +16,7 @@ class CanvasScene {
     this.reducedMotionMq = window.matchMedia('(prefers-reduced-motion: reduce)');
     this.boundAnimate = this.animate.bind(this);
     this.boundOnActivity = this.onUserActivity.bind(this);
-    this.debouncedResize = window.formatters.debounce(this.resize.bind(this), 250);
+    this.debouncedResize = formatters.debounce(this.resize.bind(this), 250);
 
     this.mainBlob.bindPointerEvents();
     this.bindActivityListeners();
@@ -26,15 +27,13 @@ class CanvasScene {
   }
 
   bindActivityListeners() {
-    const events = ['pointerdown', 'keydown', 'wheel'];
-    for (const event of events) {
+    for (const event of CanvasScene.ACTIVITY_EVENTS) {
       document.addEventListener(event, this.boundOnActivity, { passive: true });
     }
   }
 
   unbindActivityListeners() {
-    const events = ['pointerdown', 'keydown', 'wheel'];
-    for (const event of events) {
+    for (const event of CanvasScene.ACTIVITY_EVENTS) {
       document.removeEventListener(event, this.boundOnActivity);
     }
   }
@@ -146,10 +145,3 @@ class CanvasScene {
     this.mainBlob.unbindPointerEvents();
   }
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-  const canvas = document.getElementById('background');
-  if (canvas) {
-    window.canvasScene = new CanvasScene(canvas);
-  }
-}, { once: true });

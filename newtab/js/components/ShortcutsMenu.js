@@ -1,23 +1,25 @@
 class ShortcutsMenu {
   constructor() {
-    this.createShortcutsButton();
-    this.createShortcutsPanel();
+    this.isOpen = false;
+    this.button = this.createButton();
+    this.panel = this.createPanel();
     this.bindEvents();
   }
 
-  createShortcutsButton() {
+  createButton() {
     const button = document.createElement('button');
-    button.className = 'shortcuts-button';
+    button.className = 'shortcuts-button icon-btn';
+    button.type = 'button';
     button.innerHTML = Icons.keyboard();
-    button.setAttribute('type', 'button');
     button.setAttribute('aria-label', 'Keyboard shortcuts');
     button.setAttribute('aria-haspopup', 'true');
     button.setAttribute('aria-expanded', 'false');
     button.setAttribute('aria-controls', 'shortcuts-panel');
     document.body.appendChild(button);
+    return button;
   }
 
-  createShortcutsPanel() {
+  createPanel() {
     const panel = document.createElement('div');
     panel.className = 'shortcuts-panel';
     panel.id = 'shortcuts-panel';
@@ -55,45 +57,34 @@ class ShortcutsMenu {
     `;
 
     document.body.appendChild(panel);
+    return panel;
+  }
+
+  setOpen(open) {
+    this.isOpen = open;
+    this.panel.classList.toggle('show', open);
+    this.button.classList.toggle('active', open);
+    this.button.setAttribute('aria-expanded', String(open));
+  }
+
+  close() {
+    this.setOpen(false);
   }
 
   bindEvents() {
-    const button = document.querySelector('.shortcuts-button');
-    const panel = document.querySelector('.shortcuts-panel');
-    let isOpen = false;
-
-    button.addEventListener('click', () => {
-      isOpen = !isOpen;
-      panel.classList.toggle('show');
-      button.classList.toggle('active');
-      button.setAttribute('aria-expanded', String(isOpen));
-    });
+    this.button.addEventListener('click', () => this.setOpen(!this.isOpen));
 
     document.addEventListener('click', (e) => {
-      if (isOpen && !panel.contains(e.target) && !button.contains(e.target)) {
-        isOpen = false;
-        panel.classList.remove('show');
-        button.classList.remove('active');
-        button.setAttribute('aria-expanded', 'false');
+      if (this.isOpen && !this.panel.contains(e.target) && !this.button.contains(e.target)) {
+        this.close();
       }
     });
 
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && isOpen) {
-        isOpen = false;
-        panel.classList.remove('show');
-        button.classList.remove('active');
-        button.setAttribute('aria-expanded', 'false');
-        button.focus();
-      }
-      if ((e.key === 'Enter' || e.key === ' ') && document.activeElement === button) {
-        e.preventDefault();
-        button.click();
+      if (e.key === 'Escape' && this.isOpen) {
+        this.close();
+        this.button.focus();
       }
     });
   }
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-  new ShortcutsMenu();
-}, { once: true });

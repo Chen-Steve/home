@@ -4,10 +4,6 @@ const SEARCH_STORAGE_VERSION = 1;
 class SearchBar {
   constructor() {
     this.state = this.loadState();
-    this.toggleButton = null;
-    this.bar = null;
-    this.input = null;
-
     this.createToggleButton();
     this.createSearchBar();
     this.makeDraggable();
@@ -16,38 +12,27 @@ class SearchBar {
   }
 
   loadState() {
-    const fallback = { visible: true, position: null };
-    try {
-      const saved = localStorage.getItem(SEARCH_STORAGE_KEY);
-      if (!saved) return fallback;
-      const parsed = JSON.parse(saved);
-      return {
-        visible: Boolean(parsed.visible),
-        position: parsed.position && typeof parsed.position === 'object'
-          ? { x: Number(parsed.position.x), y: Number(parsed.position.y) }
-          : null
-      };
-    } catch (e) {
-      console.warn('Failed to load search bar state:', e.message);
-      return fallback;
-    }
+    const parsed = formatters.readStorage(SEARCH_STORAGE_KEY, null);
+    if (!parsed) return { visible: true, position: null };
+    return {
+      visible: Boolean(parsed.visible),
+      position: parsed.position && typeof parsed.position === 'object'
+        ? { x: Number(parsed.position.x), y: Number(parsed.position.y) }
+        : null
+    };
   }
 
   saveState() {
-    try {
-      localStorage.setItem(SEARCH_STORAGE_KEY, JSON.stringify({
-        version: SEARCH_STORAGE_VERSION,
-        visible: this.state.visible,
-        position: this.state.position
-      }));
-    } catch (e) {
-      console.warn('Failed to save search bar state:', e.message);
-    }
+    formatters.writeStorage(SEARCH_STORAGE_KEY, {
+      version: SEARCH_STORAGE_VERSION,
+      visible: this.state.visible,
+      position: this.state.position
+    });
   }
 
   createToggleButton() {
     const button = document.createElement('button');
-    button.className = 'search-toggle';
+    button.className = 'search-toggle icon-btn';
     button.type = 'button';
     button.innerHTML = Icons.search();
     button.setAttribute('aria-label', 'Toggle search bar');
@@ -81,8 +66,7 @@ class SearchBar {
   }
 
   centerHorizontally() {
-    const rect = this.bar.getBoundingClientRect();
-    const width = rect.width || 360;
+    const width = this.bar.getBoundingClientRect().width || 360;
     const x = Math.max(10, (window.innerWidth - width) / 2);
     const y = 90;
     this.setPosition(x, y);
@@ -90,13 +74,15 @@ class SearchBar {
   }
 
   setPosition(x, y) {
-    const width = this.bar.offsetWidth || 360;
-    const height = this.bar.offsetHeight || 48;
-    const clampedX = Math.max(0, Math.min(x, window.innerWidth - width));
-    const clampedY = Math.max(0, Math.min(y, window.innerHeight - height));
-    this.bar.style.left = `${clampedX}px`;
-    this.bar.style.top = `${clampedY}px`;
-    return { x: clampedX, y: clampedY };
+    const pos = formatters.clampToViewport(
+      x,
+      y,
+      this.bar.offsetWidth || 360,
+      this.bar.offsetHeight || 48
+    );
+    this.bar.style.left = `${pos.x}px`;
+    this.bar.style.top = `${pos.y}px`;
+    return pos;
   }
 
   setVisible(visible, { focus = true, save = true } = {}) {
@@ -115,19 +101,18 @@ class SearchBar {
   }
 
   bringToFront() {
+    const manager = window.postItManager;
+    if (manager && typeof manager.topZIndex === 'number') {
+      manager.topZIndex += 1;
+      this.bar.style.zIndex = String(manager.topZIndex);
+      return;
+    }
     const base = parseInt(
       getComputedStyle(document.documentElement).getPropertyValue('--z-ui'),
       10
     ) || 1000;
-    let next;
-    if (window.postItManager && typeof window.postItManager.topZIndex === 'number') {
-      window.postItManager.topZIndex += 1;
-      next = window.postItManager.topZIndex;
-    } else {
-      this.topZIndex = (this.topZIndex || base) + 1;
-      next = this.topZIndex;
-    }
-    this.bar.style.zIndex = String(next);
+    this.topZIndex = (this.topZIndex || base) + 1;
+    this.bar.style.zIndex = String(this.topZIndex);
   }
 
   toggle() {
@@ -155,9 +140,7 @@ class SearchBar {
     const onPointerMove = (e) => {
       if (!isDragging) return;
       e.preventDefault();
-      const dx = e.clientX - startPointerX;
-      const dy = e.clientY - startPointerY;
-      this.setPosition(startLeft + dx, startTop + dy);
+      this.setPosition(startLeft + e.clientX - startPointerX, startTop + e.clientY - startPointerY);
     };
 
     const onPointerUp = (e) => {
@@ -168,14 +151,12 @@ class SearchBar {
       this.state.position = { x: rect.left, y: rect.top };
       this.saveState();
       window.removeEventListener('pointermove', onPointerMove);
-      try {
-        if (e.pointerId != null) this.bar.releasePointerCapture(e.pointerId);
-      } catch (_) {}
+      formatters.releasePointer(this.bar, e);
     };
 
     this.bar.addEventListener('pointerdown', (e) => {
-      if (e.button !== 2) return;
-      if (e.target.closest('.search-close')) return;
+      this.bringToFront();
+      if (e.button !== 2 || e.target.closest('.search-close')) return;
       isDragging = true;
       const rect = this.bar.getBoundingClientRect();
       startPointerX = e.clientX;
@@ -184,23 +165,17 @@ class SearchBar {
       startTop = rect.top;
       this.bar.classList.add('moving');
       e.preventDefault();
-      try {
-        if (e.pointerId != null) this.bar.setPointerCapture(e.pointerId);
-      } catch (_) {}
+      formatters.capturePointer(this.bar, e);
       window.addEventListener('pointermove', onPointerMove);
       window.addEventListener('pointerup', onPointerUp, { once: true });
       window.addEventListener('pointercancel', onPointerUp, { once: true });
     });
 
-    this.bar.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-    });
+    this.bar.addEventListener('contextmenu', (e) => e.preventDefault());
   }
 
   bindEvents() {
     this.toggleButton.addEventListener('click', () => this.toggle());
-
-    this.bar.addEventListener('pointerdown', () => this.bringToFront());
 
     this.bar.querySelector('.search-close').addEventListener('click', () => {
       this.setVisible(false);
@@ -225,21 +200,12 @@ class SearchBar {
       }
     });
 
-    this.onResize = window.formatters?.debounce
-      ? window.formatters.debounce(() => this.handleResize(), 200)
-      : () => this.handleResize();
-    window.addEventListener('resize', this.onResize);
+    formatters.onResize(() => this.handleResize());
   }
 
   handleResize() {
-    if (this.state.position) {
-      const clamped = this.setPosition(this.state.position.x, this.state.position.y);
-      this.state.position = clamped;
-      this.saveState();
-    }
+    if (!this.state.position) return;
+    this.state.position = this.setPosition(this.state.position.x, this.state.position.y);
+    this.saveState();
   }
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-  window.searchBar = new SearchBar();
-}, { once: true });

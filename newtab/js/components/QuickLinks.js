@@ -18,37 +18,26 @@ class QuickLinks {
   }
 
   loadLinks() {
-    try {
-      const saved = localStorage.getItem(QUICK_LINKS_STORAGE_KEY);
-      if (!saved) return [];
-      const parsed = JSON.parse(saved);
-      const list = Array.isArray(parsed) ? parsed : parsed.links;
-      if (!Array.isArray(list)) return [];
-      return list
-        .filter((l) => l && l.url)
-        .map((l) => ({
-          id: String(l.id || this.generateId()),
-          name: l.name || this.hostnameOf(l.url),
-          url: this.normalizeUrl(l.url),
-          position: l.position && typeof l.position === 'object'
-            ? { x: Number(l.position.x), y: Number(l.position.y) }
-            : null
-        }));
-    } catch (e) {
-      console.warn('Failed to load quick links:', e.message);
-      return [];
-    }
+    const parsed = formatters.readStorage(QUICK_LINKS_STORAGE_KEY, []);
+    const list = Array.isArray(parsed) ? parsed : parsed.links;
+    if (!Array.isArray(list)) return [];
+    return list
+      .filter((l) => l && l.url)
+      .map((l) => ({
+        id: String(l.id || this.generateId()),
+        name: l.name || this.hostnameOf(l.url),
+        url: this.normalizeUrl(l.url),
+        position: l.position && typeof l.position === 'object'
+          ? { x: Number(l.position.x), y: Number(l.position.y) }
+          : null
+      }));
   }
 
   saveLinks() {
-    try {
-      localStorage.setItem(QUICK_LINKS_STORAGE_KEY, JSON.stringify({
-        version: QUICK_LINKS_STORAGE_VERSION,
-        links: this.links
-      }));
-    } catch (e) {
-      console.warn('Failed to save quick links:', e.message);
-    }
+    formatters.writeStorage(QUICK_LINKS_STORAGE_KEY, {
+      version: QUICK_LINKS_STORAGE_VERSION,
+      links: this.links
+    });
   }
 
   normalizeUrl(url) {
@@ -58,20 +47,21 @@ class QuickLinks {
   }
 
   hostnameOf(url) {
+    const host = this.hostOf(url);
+    return host ? host.replace(/^www\./, '') : url;
+  }
+
+  hostOf(url) {
     try {
-      return new URL(this.normalizeUrl(url)).hostname.replace(/^www\./, '');
+      return new URL(this.normalizeUrl(url)).hostname;
     } catch (_) {
-      return url;
+      return '';
     }
   }
 
   faviconFor(url) {
-    try {
-      const host = new URL(this.normalizeUrl(url)).hostname;
-      return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`;
-    } catch (_) {
-      return '';
-    }
+    const host = this.hostOf(url);
+    return host ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64` : '';
   }
 
   createContainer() {
@@ -80,10 +70,7 @@ class QuickLinks {
     document.body.appendChild(container);
     this.container = container;
 
-    this.onResize = window.formatters?.debounce
-      ? window.formatters.debounce(() => this.render(), 200)
-      : () => this.render();
-    window.addEventListener('resize', this.onResize);
+    formatters.onResize(() => this.repositionTiles());
 
     document.addEventListener('keydown', (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
@@ -111,13 +98,25 @@ class QuickLinks {
   }
 
   setTilePosition(tile, x, y) {
-    const w = tile.offsetWidth || 92;
-    const h = tile.offsetHeight || 92;
-    const clampedX = Math.max(0, Math.min(x, window.innerWidth - w));
-    const clampedY = Math.max(0, Math.min(y, window.innerHeight - h));
-    tile.style.left = `${clampedX}px`;
-    tile.style.top = `${clampedY}px`;
-    return { x: clampedX, y: clampedY };
+    const pos = formatters.clampToViewport(
+      x,
+      y,
+      tile.offsetWidth || 92,
+      tile.offsetHeight || 92
+    );
+    tile.style.left = `${pos.x}px`;
+    tile.style.top = `${pos.y}px`;
+    return pos;
+  }
+
+  repositionTiles() {
+    this.links.forEach((link) => {
+      if (!link.position) return;
+      const tile = this.container.querySelector(`[data-link-id="${CSS.escape(link.id)}"]`);
+      if (!tile) return;
+      link.position = this.setTilePosition(tile, link.position.x, link.position.y);
+    });
+    this.saveLinks();
   }
 
   render() {
@@ -150,6 +149,7 @@ class QuickLinks {
     tile.className = 'quick-link';
     tile.href = link.url;
     tile.title = link.name;
+    tile.dataset.linkId = link.id;
     tile.setAttribute('draggable', 'false');
 
     const iconWrap = document.createElement('span');
@@ -214,9 +214,7 @@ class QuickLinks {
 
     const onPointerUp = (e) => {
       window.removeEventListener('pointermove', onPointerMove);
-      try {
-        if (e.pointerId != null) tile.releasePointerCapture(e.pointerId);
-      } catch (_) {}
+      formatters.releasePointer(tile, e);
       if (dragging) {
         tile.classList.remove('moving');
         this.saveLinks();
@@ -234,9 +232,7 @@ class QuickLinks {
       startLeft = rect.left;
       startTop = rect.top;
       dragging = false;
-      try {
-        if (e.pointerId != null) tile.setPointerCapture(e.pointerId);
-      } catch (_) {}
+      formatters.capturePointer(tile, e);
       window.addEventListener('pointermove', onPointerMove);
       window.addEventListener('pointerup', onPointerUp, { once: true });
       window.addEventListener('pointercancel', onPointerUp, { once: true });
@@ -344,7 +340,3 @@ class QuickLinks {
     this.closeDialog();
   }
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-  window.quickLinks = new QuickLinks();
-}, { once: true });

@@ -1,6 +1,7 @@
 const NOTE_STORAGE_KEY = 'postItNotes';
 const NOTE_STORAGE_VERSION = 2;
 const MAX_DELETED_NOTES = 100;
+const ARROW_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
 
 class PostItNote {
   constructor(id, content, position) {
@@ -62,28 +63,18 @@ class PostItManager {
   }
 
   createCreateNoteButton() {
-    const existing = document.querySelector('.create-postit');
-    if (existing) return;
     const button = document.createElement('button');
     button.className = 'create-postit';
+    button.type = 'button';
     button.setAttribute('aria-label', 'Create new note');
     button.textContent = 'Add note';
-    button.addEventListener('click', () => {
-      this.createNewNote();
-    });
+    button.addEventListener('click', () => this.createNewNote());
     document.body.appendChild(button);
   }
 
   createTrashButton() {
-    const existing = document.querySelector('.postit-trash-toggle');
-    if (existing) {
-      this.trashButton = existing;
-      this.trashCount = existing.querySelector('.postit-trash-count');
-      return;
-    }
-
     const button = document.createElement('button');
-    button.className = 'postit-trash-toggle';
+    button.className = 'postit-trash-toggle icon-btn';
     button.type = 'button';
     button.setAttribute('aria-label', 'Open deleted notes');
     button.innerHTML = `${Icons.trash()}<span class="postit-trash-count" aria-hidden="true"></span>`;
@@ -91,17 +82,9 @@ class PostItManager {
     document.body.appendChild(button);
     this.trashButton = button;
     this.trashCount = button.querySelector('.postit-trash-count');
-    this.updateTrashButton();
   }
 
   createTrashDialog() {
-    const existing = document.querySelector('.postit-trash-dialog');
-    if (existing) {
-      this.trashDialog = existing;
-      this.trashList = existing.querySelector('.postit-trash-list');
-      return;
-    }
-
     const overlay = document.createElement('div');
     overlay.className = 'postit-trash-dialog';
     overlay.setAttribute('role', 'dialog');
@@ -211,7 +194,7 @@ class PostItManager {
         }
       }
 
-      if (this.currentNoteIndex >= 0 && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      if (this.currentNoteIndex >= 0 && ARROW_KEYS.includes(e.key)) {
         e.preventDefault();
         this.activeKeys.add(e.key);
         this.startMoving();
@@ -219,7 +202,7 @@ class PostItManager {
     });
 
     document.addEventListener('keyup', (e) => {
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      if (ARROW_KEYS.includes(e.key)) {
         this.activeKeys.delete(e.key);
         if (this.activeKeys.size === 0) {
           this.stopMoving();
@@ -227,8 +210,7 @@ class PostItManager {
       }
     });
 
-    this.onResize = window.formatters.debounce(() => this.adjustNotesPosition(), 200);
-    window.addEventListener('resize', this.onResize);
+    formatters.onResize(() => this.adjustNotesPosition());
   }
 
   selectNextNote() {
@@ -349,9 +331,7 @@ class PostItManager {
       }
 
       window.removeEventListener('pointermove', onPointerMove);
-      try {
-        if (e.pointerId != null) noteElement.releasePointerCapture(e.pointerId);
-      } catch (_) {}
+      formatters.releasePointer(noteElement, e);
     };
 
     const startDrag = (e) => {
@@ -367,9 +347,7 @@ class PostItManager {
       deltaY = 0;
       noteElement.classList.add('moving');
       e.preventDefault();
-      try {
-        if (e.pointerId != null) noteElement.setPointerCapture(e.pointerId);
-      } catch (_) {}
+      formatters.capturePointer(noteElement, e);
       window.addEventListener('pointermove', onPointerMove);
       window.addEventListener('pointerup', onPointerUp, { once: true });
       window.addEventListener('pointercancel', onPointerUp, { once: true });
@@ -394,7 +372,7 @@ class PostItManager {
       this.bringNoteToFront(noteElement);
     });
 
-    const debouncedSave = window.formatters.debounce(() => this.saveNotes(), 600);
+    const debouncedSave = formatters.debounce(() => this.saveNotes(), 600);
     contentDiv.addEventListener('input', () => {
       note.content = contentDiv.innerHTML;
       debouncedSave();
@@ -414,10 +392,12 @@ class PostItManager {
     this.notes.forEach((note) => {
       const noteElement = document.getElementById(`note-${note.id}`);
       if (noteElement) {
-        const maxX = window.innerWidth - note.size.width;
-        const maxY = window.innerHeight - note.size.height;
-        note.position.x = Math.max(0, Math.min(note.position.x, maxX));
-        note.position.y = Math.max(0, Math.min(note.position.y, maxY));
+        note.position = formatters.clampToViewport(
+          note.position.x,
+          note.position.y,
+          note.size.width,
+          note.size.height
+        );
         noteElement.style.left = `${note.position.x}px`;
         noteElement.style.top = `${note.position.y}px`;
       }
@@ -462,31 +442,20 @@ class PostItManager {
   }
 
   saveNotes() {
-    try {
-      localStorage.setItem(NOTE_STORAGE_KEY, JSON.stringify({
-        version: NOTE_STORAGE_VERSION,
-        notes: this.notes,
-        deletedNotes: this.deletedNotes
-      }));
-    } catch (e) {
-      console.warn('Failed to save notes to localStorage:', e.message);
-    }
+    formatters.writeStorage(NOTE_STORAGE_KEY, {
+      version: NOTE_STORAGE_VERSION,
+      notes: this.notes,
+      deletedNotes: this.deletedNotes
+    });
   }
 
   loadNotes() {
     let migratedFromLegacy = false;
-    try {
-      const savedNotes = localStorage.getItem(NOTE_STORAGE_KEY);
-      const parsed = savedNotes ? JSON.parse(savedNotes) : null;
-      if (Array.isArray(parsed)) migratedFromLegacy = true;
-      const migrated = this.migrateStoredNotes(parsed);
-      this.notes = migrated.notes;
-      this.deletedNotes = migrated.deletedNotes.slice(0, MAX_DELETED_NOTES);
-    } catch (e) {
-      console.warn('Failed to load notes from localStorage:', e.message);
-      this.notes = [];
-      this.deletedNotes = [];
-    }
+    const parsed = formatters.readStorage(NOTE_STORAGE_KEY, null);
+    if (Array.isArray(parsed)) migratedFromLegacy = true;
+    const migrated = this.migrateStoredNotes(parsed);
+    this.notes = migrated.notes;
+    this.deletedNotes = migrated.deletedNotes.slice(0, MAX_DELETED_NOTES);
 
     let assigned = false;
     this.notes.forEach((note) => {
@@ -563,6 +532,7 @@ class PostItManager {
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
       checkbox.className = 'postit-trash-item-checkbox';
+      checkbox.dataset.noteId = note.id;
       checkbox.setAttribute('aria-label', `Select ${this.getNotePreview(note)}`);
       checkbox.checked = this.selectedDeletedNoteIds.has(note.id);
       checkbox.addEventListener('change', () => {
@@ -584,7 +554,7 @@ class PostItManager {
       restoreButton.type = 'button';
       restoreButton.className = 'postit-trash-action postit-trash-restore';
       restoreButton.textContent = 'Restore';
-      restoreButton.addEventListener('click', () => this.restoreDeletedNote(note.id));
+      restoreButton.addEventListener('click', () => this.restoreNoteFromTrash(note.id));
 
       const deleteButton = document.createElement('button');
       deleteButton.type = 'button';
@@ -629,24 +599,24 @@ class PostItManager {
   }
 
   setDeletedNoteSelected(id, selected) {
-    if (selected) {
-      this.selectedDeletedNoteIds.add(id);
-    } else {
-      this.selectedDeletedNoteIds.delete(id);
-    }
-    this.renderTrashDialog();
+    if (selected) this.selectedDeletedNoteIds.add(id);
+    else this.selectedDeletedNoteIds.delete(id);
+    this.updateTrashBulkActions();
   }
 
   setAllDeletedNotesSelected(selected) {
     this.selectedDeletedNoteIds = selected
       ? new Set(this.deletedNotes.map((note) => note.id))
       : new Set();
-    this.renderTrashDialog();
+    this.trashList.querySelectorAll('.postit-trash-item-checkbox').forEach((checkbox) => {
+      checkbox.checked = selected;
+    });
+    this.updateTrashBulkActions();
   }
 
-  restoreDeletedNote(id) {
+  restoreNoteFromTrash(id, { persist = true } = {}) {
     const note = this.deletedNotes.find((n) => n.id === id);
-    if (!note) return;
+    if (!note) return false;
 
     const restoredNote = this.normalizeNote(note);
     if (this.notes.some((n) => n.id === restoredNote.id)) {
@@ -657,8 +627,13 @@ class PostItManager {
     this.selectedDeletedNoteIds.delete(id);
     this.notes.push(restoredNote);
     this.renderNote(restoredNote);
+
+    if (persist) this.persistRestoredNotes();
+    return true;
+  }
+
+  persistRestoredNotes() {
     this.adjustNotesPosition();
-    this.saveNotes();
     this.updateTrashButton();
     this.renderTrashDialog();
   }
@@ -672,25 +647,11 @@ class PostItManager {
   }
 
   restoreSelectedDeletedNotes() {
-    const selectedIds = [...this.selectedDeletedNoteIds];
-    selectedIds.forEach((id) => {
-      const note = this.deletedNotes.find((n) => n.id === id);
-      if (!note) return;
-
-      const restoredNote = this.normalizeNote(note);
-      if (this.notes.some((n) => n.id === restoredNote.id)) {
-        restoredNote.id = this.generateNoteId();
-      }
-      this.notes.push(restoredNote);
-      this.renderNote(restoredNote);
+    [...this.selectedDeletedNoteIds].forEach((id) => {
+      this.restoreNoteFromTrash(id, { persist: false });
     });
-
-    this.deletedNotes = this.deletedNotes.filter((note) => !this.selectedDeletedNoteIds.has(note.id));
     this.selectedDeletedNoteIds.clear();
-    this.adjustNotesPosition();
-    this.saveNotes();
-    this.updateTrashButton();
-    this.renderTrashDialog();
+    this.persistRestoredNotes();
   }
 
   deleteSelectedForever() {
@@ -708,7 +669,7 @@ class PostItManager {
     let originalHeight;
     let originalX;
     let originalY;
-    let debouncedResizeSave = window.formatters.debounce(() => this.saveNotes(), 300);
+    let debouncedResizeSave = formatters.debounce(() => this.saveNotes(), 300);
 
     const onPointerMove = (e) => {
       if (!isResizing) return;
@@ -736,9 +697,7 @@ class PostItManager {
       if (note) this.saveNotes();
 
       window.removeEventListener('pointermove', onPointerMove);
-      try {
-        if (e.pointerId != null) resizeHandle.releasePointerCapture(e.pointerId);
-      } catch (_) {}
+      formatters.releasePointer(resizeHandle, e);
     };
 
     resizeHandle.addEventListener('pointerdown', (e) => {
@@ -750,9 +709,7 @@ class PostItManager {
       noteElement.classList.add('moving');
       e.preventDefault();
       e.stopPropagation();
-      try {
-        if (e.pointerId != null) resizeHandle.setPointerCapture(e.pointerId);
-      } catch (_) {}
+      formatters.capturePointer(resizeHandle, e);
       window.addEventListener('pointermove', onPointerMove);
       window.addEventListener('pointerup', onPointerUp, { once: true });
       window.addEventListener('pointercancel', onPointerUp, { once: true });
@@ -805,12 +762,14 @@ class PostItManager {
 
     const note = this.getNoteFromElement(noteElement);
     if (note) {
-      const newX = Math.max(0, Math.min(window.innerWidth - note.size.width, note.position.x + this.keyboardMoveOffset.x));
-      const newY = Math.max(0, Math.min(window.innerHeight - note.size.height, note.position.y + this.keyboardMoveOffset.y));
-      note.position.x = newX;
-      note.position.y = newY;
-      noteElement.style.left = `${newX}px`;
-      noteElement.style.top = `${newY}px`;
+      note.position = formatters.clampToViewport(
+        note.position.x + this.keyboardMoveOffset.x,
+        note.position.y + this.keyboardMoveOffset.y,
+        note.size.width,
+        note.size.height
+      );
+      noteElement.style.left = `${note.position.x}px`;
+      noteElement.style.top = `${note.position.y}px`;
     }
     this.keyboardMoveOffset = { x: 0, y: 0 };
     noteElement.style.transform = '';
@@ -842,7 +801,3 @@ class PostItManager {
     }
   }
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-  window.postItManager = new PostItManager();
-}, { once: true });

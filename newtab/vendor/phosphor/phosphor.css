@@ -1,0 +1,30 @@
+/* Phosphor Icons (MIT) — regular weight, https://phosphoricons.com */
+@font-face {
+  font-family: "Phosphor";
+  src: url("./Phosphor.woff2") format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+
+.ph {
+  font-family: "Phosphor" !important;
+  speak: never;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+  letter-spacing: 0;
+  -webkit-font-feature-settings: "liga";
+  font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.ph.ph-caret-left:before { content: "\e138"; }
+.ph.ph-globe:before { content: "\e288"; }
+.ph.ph-keyboard:before { content: "\e2d8"; }
+.ph.ph-magnifying-glass:before { content: "\e30c"; }
+.ph.ph-trash:before { content: "\e4a6"; }
+.ph.ph-x:before { content: "\e4f6"; }

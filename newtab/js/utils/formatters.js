@@ -1,67 +1,69 @@
-// Utility functions for formatting text and values
-/**
- * @typedef {Object} Formatters
- * @property {(bytes:number, decimals?:number)=>string} formatBytes
- * @property {(size:number, min?:number, max?:number)=>number} clampFontSize
- * @property {(func:Function, wait:number)=>Function} debounce
- */
-
-/** @type {Formatters} */
 const formatters = {
-  /**
-   * Debounce a function to limit how often it can be called.
-   * @param {Function} func - The function to debounce
-   * @param {number} wait - The debounce delay in milliseconds
-   * @returns {Function} The debounced function
-   */
-  debounce: (func, wait) => {
+  debounce(func, wait) {
     let timeout;
     return function executedFunction(...args) {
-      const later = () => {
-        clearTimeout(timeout);
-        func.apply(this, args);
-      };
       clearTimeout(timeout);
-      timeout = setTimeout(later, wait);
+      timeout = setTimeout(() => {
+        func.apply(this, args);
+      }, wait);
     };
   },
 
-  /**
-   * Human-readable bytes formatter.
-   * @param {number} bytes
-   * @param {number} [decimals=2]
-   * @returns {string}
-   */
-  formatBytes: (bytes, decimals = 2) => {
-    const num = Number(bytes);
-    if (!Number.isFinite(num) || num <= 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB'];
-    const i = Math.min(Math.floor(Math.log(num) / Math.log(k)), sizes.length - 1);
-    const value = num / Math.pow(k, i);
-    const fractionDigits = Math.max(0, Math.min(6, Number(decimals) || 0));
-    return `${parseFloat(value.toFixed(fractionDigits))} ${sizes[i]}`;
-  },
-
-  /**
-   * Clamp a font size between bounds.
-   * @param {number} size
-   * @param {number} [min=12]
-   * @param {number} [max=32]
-   * @returns {number}
-   */
-  clampFontSize: (size, min = 12, max = 32) => {
-    const numeric = Number(size);
+  clamp(value, min, max) {
+    const numeric = Number(value);
     const lower = Number(min);
     const upper = Number(max);
     if (!Number.isFinite(numeric)) return lower;
     return Math.min(Math.max(numeric, lower), upper);
+  },
+
+  clampFontSize(size, min = 12, max = 32) {
+    return formatters.clamp(size, min, max);
+  },
+
+  clampToViewport(x, y, width, height) {
+    return {
+      x: formatters.clamp(x, 0, Math.max(0, window.innerWidth - width)),
+      y: formatters.clamp(y, 0, Math.max(0, window.innerHeight - height))
+    };
+  },
+
+  readStorage(key, fallback) {
+    try {
+      const saved = localStorage.getItem(key);
+      if (saved == null) return fallback;
+      return JSON.parse(saved);
+    } catch (e) {
+      console.warn(`Failed to load ${key}:`, e.message);
+      return fallback;
+    }
+  },
+
+  writeStorage(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (e) {
+      console.warn(`Failed to save ${key}:`, e.message);
+    }
+  },
+
+  capturePointer(el, e) {
+    try {
+      if (e.pointerId != null) el.setPointerCapture(e.pointerId);
+    } catch (_) {}
+  },
+
+  releasePointer(el, e) {
+    try {
+      if (e.pointerId != null) el.releasePointerCapture(e.pointerId);
+    } catch (_) {}
+  },
+
+  onResize(handler, wait = 200) {
+    const fn = formatters.debounce(handler, wait);
+    window.addEventListener('resize', fn);
+    return fn;
   }
 };
 
-// Make the functions available globally or as a module
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = formatters;
-} else {
-  window.formatters = formatters;
-}
+window.formatters = formatters;

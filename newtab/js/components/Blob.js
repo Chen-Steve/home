@@ -45,7 +45,7 @@ class MainBlob {
       if (dist2 <= approxBlobRadius * approxBlobRadius) {
         this.isDragging = true;
         this.updateDrag({ x, y });
-        try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+        formatters.capturePointer(canvas, e);
         document.body.classList.add('dragging-blob');
         e.preventDefault();
       }
@@ -60,7 +60,7 @@ class MainBlob {
     this.onPointerUp = (e) => {
       if (!this.isDragging) return;
       this.isDragging = false;
-      try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+      formatters.releasePointer(canvas, e);
       document.body.classList.remove('dragging-blob');
     };
 

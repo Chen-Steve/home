@@ -62,9 +62,11 @@
   font-display: swap;
 }
 
-:root {  --color-fg: #2C3E50;
+:root {
+  --color-fg: #2C3E50;
   --color-bg: transparent;
   --focus-ring: #3b82f6;
+  --radius-md: 12px;
   --z-background: 0;
   --z-ui: 1000;
   --z-top: 2147483647;
@@ -102,8 +104,39 @@ body {
 }
 
 .icon {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  line-height: 1;
+}
+
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--color-fg);
+  background: rgba(44, 62, 80, 0.1);
+  transition: background 0.3s ease;
+}
+
+.icon-btn:hover:not(:disabled) {
+  background: rgba(44, 62, 80, 0.2);
+}
+
+.icon-btn.active {
+  background: rgba(44, 62, 80, 0.3);
+}
+
+.icon-btn:disabled {
+  cursor: default;
+  opacity: 0.65;
 }
 
 #background {
@@ -120,4 +153,11 @@ body {
 :focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
+}
+
+@media screen and (max-width: 768px) {
+  .icon-btn {
+    width: 35px;
+    height: 35px;
+  }
 }
