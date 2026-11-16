@@ -1,7 +1,6 @@
 class Clock {
   constructor() {
     this.timeElement = document.getElementById('time');
-    this.rafId = null;
     this.timerId = null;
     this.init();
   }
@@ -13,32 +12,23 @@ class Clock {
   }
 
   updateTime() {
-    const now = new Date();
-    this.timeElement.textContent = now.toLocaleTimeString();
+    this.timeElement.textContent = new Date().toLocaleTimeString();
   }
 
   startClock() {
-    if (this.timerId != null || this.rafId != null) return;
+    if (this.timerId != null) return;
     const tick = () => {
-      // Driftless ticking: schedule next tick based on the next whole second
-      const now = Date.now();
       this.updateTime();
-      const next = 1000 - (now % 1000);
-      this.timerId = setTimeout(() => {
-        this.rafId = requestAnimationFrame(tick);
-      }, next);
+      const next = 1000 - (Date.now() % 1000);
+      this.timerId = setTimeout(tick, next);
     };
     tick();
   }
 
   stopClock() {
-    if (this.timerId) {
+    if (this.timerId != null) {
       clearTimeout(this.timerId);
       this.timerId = null;
-    }
-    if (this.rafId) {
-      cancelAnimationFrame(this.rafId);
-      this.rafId = null;
     }
   }
 

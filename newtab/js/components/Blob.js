@@ -19,6 +19,7 @@ class MainBlob {
     this.dragOffsetY = 0;
     this.snapEase = 0.12;
     this.dragSpinSpeed = 0.06;
+    this.noise = 15;
     this.centerX = 0;
     this.centerY = 0;
     this.gradient = null;
@@ -29,6 +30,12 @@ class MainBlob {
   onResize(width, height) {
     this.centerX = width / 2;
     this.centerY = height / 2;
+  }
+
+  canvasSize() {
+    const reach = this.radius + this.noise + this.dragRadius + 8;
+    const wanted = Math.ceil(reach * 2);
+    return Math.max(1, Math.min(wanted, window.innerWidth, window.innerHeight));
   }
 
   bindPointerEvents() {
@@ -101,7 +108,7 @@ class MainBlob {
     const cy = this.centerY + this.dragOffsetY;
 
     for (let i = 0; i < this.numPoints; i++) {
-      const noise = Math.sin(this.time + i) * 15;
+      const noise = Math.sin(this.time + i) * this.noise;
       const currentAngle = this.angle * i + this.rotation;
       const point = this.points[i];
       point.x = cx + Math.cos(currentAngle) * (this.radius + noise);

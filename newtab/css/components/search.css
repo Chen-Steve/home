@@ -10,8 +10,6 @@
   padding: 6px 10px 6px 16px;
   border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
   z-index: var(--z-ui, 1000);
 }
@@ -23,6 +21,7 @@
 .search-bar.moving {
   cursor: grabbing;
   user-select: none;
+  will-change: transform;
 }
 
 .search-bar.moving .search-input {

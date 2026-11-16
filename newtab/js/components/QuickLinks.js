@@ -110,13 +110,17 @@ class QuickLinks {
   }
 
   repositionTiles() {
+    let changed = false;
     this.links.forEach((link) => {
       if (!link.position) return;
       const tile = this.container.querySelector(`[data-link-id="${CSS.escape(link.id)}"]`);
       if (!tile) return;
-      link.position = this.setTilePosition(tile, link.position.x, link.position.y);
+      const next = this.setTilePosition(tile, link.position.x, link.position.y);
+      if (next.x === link.position.x && next.y === link.position.y) return;
+      link.position = next;
+      changed = true;
     });
-    this.saveLinks();
+    if (changed) this.saveLinks();
   }
 
   render() {
@@ -194,48 +198,13 @@ class QuickLinks {
   }
 
   makeTileDraggable(tile, link) {
-    let startPointerX = 0;
-    let startPointerY = 0;
-    let startLeft = 0;
-    let startTop = 0;
-    let dragging = false;
-
-    const onPointerMove = (e) => {
-      const dx = e.clientX - startPointerX;
-      const dy = e.clientY - startPointerY;
-      if (!dragging && Math.hypot(dx, dy) > 4) {
-        dragging = true;
-        tile.classList.add('moving');
-      }
-      if (!dragging) return;
-      e.preventDefault();
-      link.position = this.setTilePosition(tile, startLeft + dx, startTop + dy);
-    };
-
-    const onPointerUp = (e) => {
-      window.removeEventListener('pointermove', onPointerMove);
-      formatters.releasePointer(tile, e);
-      if (dragging) {
-        tile.classList.remove('moving');
+    formatters.trackPointerDrag(tile, {
+      ignore: '.quick-link-remove',
+      threshold: 4,
+      onCommit: ({ x, y }) => {
+        link.position = { x, y };
         this.saveLinks();
       }
-      dragging = false;
-    };
-
-    tile.addEventListener('pointerdown', (e) => {
-      if (e.button !== 2) return;
-      if (e.target.closest('.quick-link-remove')) return;
-      const rect = tile.getBoundingClientRect();
-      startPointerX = e.clientX;
-      startPointerY = e.clientY;
-      startLeft = rect.left;
-      startTop = rect.top;
-      dragging = false;
-      e.preventDefault();
-      formatters.capturePointer(tile, e);
-      window.addEventListener('pointermove', onPointerMove);
-      window.addEventListener('pointerup', onPointerUp, { once: true });
-      window.addEventListener('pointercancel', onPointerUp, { once: true });
     });
 
     tile.addEventListener('contextmenu', (e) => e.preventDefault());

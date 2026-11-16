@@ -1,12 +1,14 @@
 class CanvasScene {
   static TARGET_FPS = 30;
+  static MAX_DPR = 2;
   static IDLE_TIMEOUT_MS = 30000;
   static ACTIVITY_EVENTS = ['pointerdown', 'keydown', 'wheel'];
 
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
-    this.dpr = window.devicePixelRatio || 1;
+    this.dpr = Math.min(window.devicePixelRatio || 1, CanvasScene.MAX_DPR);
+    this.viewSize = 0;
     this.mainBlob = new MainBlob(this);
     this.rafId = null;
     this.frameInterval = 1000 / CanvasScene.TARGET_FPS;
@@ -64,11 +66,11 @@ class CanvasScene {
   }
 
   get width() {
-    return this.canvas.clientWidth;
+    return this.viewSize;
   }
 
   get height() {
-    return this.canvas.clientHeight;
+    return this.viewSize;
   }
 
   prefersReducedMotion() {
@@ -76,15 +78,17 @@ class CanvasScene {
   }
 
   resize() {
-    this.dpr = window.devicePixelRatio || 1;
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    this.canvas.width = Math.round(w * this.dpr);
-    this.canvas.height = Math.round(h * this.dpr);
-    this.canvas.style.width = `${w}px`;
-    this.canvas.style.height = `${h}px`;
-    this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    this.mainBlob.onResize(w, h);
+    const dpr = Math.min(window.devicePixelRatio || 1, CanvasScene.MAX_DPR);
+    const size = this.mainBlob.canvasSize();
+    if (this.viewSize === size && this.dpr === dpr) return;
+    this.dpr = dpr;
+    this.viewSize = size;
+    this.canvas.style.width = `${size}px`;
+    this.canvas.style.height = `${size}px`;
+    this.canvas.width = Math.round(size * dpr);
+    this.canvas.height = Math.round(size * dpr);
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.mainBlob.onResize(size, size);
     this.drawFrame();
   }
 

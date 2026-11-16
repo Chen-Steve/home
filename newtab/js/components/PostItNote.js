@@ -210,7 +210,9 @@ class PostItManager {
       }
     });
 
-    formatters.onResize(() => this.adjustNotesPosition());
+    formatters.onResize(() => {
+      if (this.adjustNotesPosition()) this.saveNotes();
+    });
   }
 
   selectNextNote() {
@@ -274,89 +276,14 @@ class PostItManager {
   }
 
   makeNoteDraggable(noteElement) {
-    let isDragging = false;
-    let startPointerX = 0;
-    let startPointerY = 0;
-    let startLeft = 0;
-    let startTop = 0;
-    let deltaX = 0;
-    let deltaY = 0;
-    let rafId = null;
-    let elementWidth = 0;
-    let elementHeight = 0;
-
-    const applyTransform = () => {
-      rafId = null;
-      noteElement.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
-    };
-
-    const onPointerMove = (e) => {
-      if (!isDragging) return;
-      e.preventDefault();
-      const rawDx = e.clientX - startPointerX;
-      const rawDy = e.clientY - startPointerY;
-      const minX = -startLeft;
-      const maxX = (window.innerWidth - elementWidth) - startLeft;
-      const minY = -startTop;
-      const maxY = (window.innerHeight - elementHeight) - startTop;
-      deltaX = Math.max(minX, Math.min(maxX, rawDx));
-      deltaY = Math.max(minY, Math.min(maxY, rawDy));
-      if (rafId === null) {
-        rafId = requestAnimationFrame(applyTransform);
-      }
-    };
-
-    const onPointerUp = (e) => {
-      if (!isDragging) return;
-      isDragging = false;
-      if (rafId) {
-        cancelAnimationFrame(rafId);
-        rafId = null;
-      }
-
-      const note = this.getNoteFromElement(noteElement);
-      const newX = startLeft + deltaX;
-      const newY = startTop + deltaY;
-
-      noteElement.style.left = `${newX}px`;
-      noteElement.style.top = `${newY}px`;
-      noteElement.style.transform = '';
-      requestAnimationFrame(() => {
-        noteElement.classList.remove('moving');
-      });
-
-      if (note) {
-        note.position = { x: newX, y: newY };
+    formatters.trackPointerDrag(noteElement, {
+      ignore: '.delete-note, .resize-handle',
+      onCommit: ({ x, y }) => {
+        const note = this.getNoteFromElement(noteElement);
+        if (!note) return;
+        note.position = { x, y };
         this.saveNotes();
       }
-
-      window.removeEventListener('pointermove', onPointerMove);
-      formatters.releasePointer(noteElement, e);
-    };
-
-    const startDrag = (e) => {
-      isDragging = true;
-      const rect = noteElement.getBoundingClientRect();
-      startPointerX = e.clientX;
-      startPointerY = e.clientY;
-      startLeft = rect.left;
-      startTop = rect.top;
-      elementWidth = rect.width;
-      elementHeight = rect.height;
-      deltaX = 0;
-      deltaY = 0;
-      noteElement.classList.add('moving');
-      e.preventDefault();
-      formatters.capturePointer(noteElement, e);
-      window.addEventListener('pointermove', onPointerMove);
-      window.addEventListener('pointerup', onPointerUp, { once: true });
-      window.addEventListener('pointercancel', onPointerUp, { once: true });
-    };
-
-    noteElement.addEventListener('pointerdown', (e) => {
-      if (e.button !== 2) return;
-      if (e.target.closest('.delete-note, .resize-handle')) return;
-      startDrag(e);
     });
 
     noteElement.addEventListener('contextmenu', (e) => {
@@ -389,20 +316,23 @@ class PostItManager {
   }
 
   adjustNotesPosition() {
+    let changed = false;
     this.notes.forEach((note) => {
       const noteElement = document.getElementById(`note-${note.id}`);
-      if (noteElement) {
-        note.position = formatters.clampToViewport(
-          note.position.x,
-          note.position.y,
-          note.size.width,
-          note.size.height
-        );
-        noteElement.style.left = `${note.position.x}px`;
-        noteElement.style.top = `${note.position.y}px`;
-      }
+      if (!noteElement) return;
+      const next = formatters.clampToViewport(
+        note.position.x,
+        note.position.y,
+        note.size.width,
+        note.size.height
+      );
+      if (next.x === note.position.x && next.y === note.position.y) return;
+      note.position = next;
+      noteElement.style.left = `${next.x}px`;
+      noteElement.style.top = `${next.y}px`;
+      changed = true;
     });
-    this.saveNotes();
+    return changed;
   }
 
   normalizeNote(raw) {
@@ -675,6 +605,7 @@ class PostItManager {
 
   persistRestoredNotes() {
     this.adjustNotesPosition();
+    this.saveNotes();
     this.updateTrashButton();
     this.renderTrashDialog();
   }
@@ -705,55 +636,56 @@ class PostItManager {
 
   makeNoteResizable(noteElement) {
     const resizeHandle = noteElement.querySelector('.resize-handle');
-    let isResizing = false;
-    let originalWidth;
-    let originalHeight;
-    let originalX;
-    let originalY;
-    let debouncedResizeSave = formatters.debounce(() => this.saveNotes(), 300);
-
-    const onPointerMove = (e) => {
-      if (!isResizing) return;
-      e.preventDefault();
-
-      const newWidth = Math.max(150, originalWidth + (e.clientX - originalX));
-      const newHeight = Math.max(150, originalHeight + (e.clientY - originalY));
-
-      noteElement.style.width = `${newWidth}px`;
-      noteElement.style.height = `${newHeight}px`;
-
-      const note = this.getNoteFromElement(noteElement);
-      if (note) {
-        note.size = { width: newWidth, height: newHeight };
-        debouncedResizeSave();
-      }
-    };
-
-    const onPointerUp = (e) => {
-      if (!isResizing) return;
-      isResizing = false;
-      noteElement.classList.remove('moving');
-
-      const note = this.getNoteFromElement(noteElement);
-      if (note) this.saveNotes();
-
-      window.removeEventListener('pointermove', onPointerMove);
-      formatters.releasePointer(resizeHandle, e);
-    };
 
     resizeHandle.addEventListener('pointerdown', (e) => {
-      isResizing = true;
-      originalWidth = noteElement.offsetWidth;
-      originalHeight = noteElement.offsetHeight;
-      originalX = e.clientX;
-      originalY = e.clientY;
-      noteElement.classList.add('moving');
       e.preventDefault();
       e.stopPropagation();
+
+      const note = this.getNoteFromElement(noteElement);
+      const originalWidth = noteElement.offsetWidth;
+      const originalHeight = noteElement.offsetHeight;
+      const originalX = e.clientX;
+      const originalY = e.clientY;
+      let rafId = null;
+      let nextWidth = originalWidth;
+      let nextHeight = originalHeight;
+
+      noteElement.classList.add('moving');
       formatters.capturePointer(resizeHandle, e);
+
+      const applySize = () => {
+        rafId = null;
+        noteElement.style.width = `${nextWidth}px`;
+        noteElement.style.height = `${nextHeight}px`;
+        if (note) note.size = { width: nextWidth, height: nextHeight };
+      };
+
+      const onPointerMove = (ev) => {
+        ev.preventDefault();
+        nextWidth = Math.max(150, originalWidth + (ev.clientX - originalX));
+        nextHeight = Math.max(150, originalHeight + (ev.clientY - originalY));
+        if (rafId === null) rafId = requestAnimationFrame(applySize);
+      };
+
+      const onPointerUp = (ev) => {
+        window.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('pointerup', onPointerUp);
+        window.removeEventListener('pointercancel', onPointerUp);
+        if (rafId !== null) {
+          cancelAnimationFrame(rafId);
+          applySize();
+        }
+        noteElement.classList.remove('moving');
+        formatters.releasePointer(resizeHandle, ev);
+        if (note && (nextWidth !== originalWidth || nextHeight !== originalHeight)) {
+          note.size = { width: nextWidth, height: nextHeight };
+          this.saveNotes();
+        }
+      };
+
       window.addEventListener('pointermove', onPointerMove);
-      window.addEventListener('pointerup', onPointerUp, { once: true });
-      window.addEventListener('pointercancel', onPointerUp, { once: true });
+      window.addEventListener('pointerup', onPointerUp);
+      window.addEventListener('pointercancel', onPointerUp);
     });
   }
 

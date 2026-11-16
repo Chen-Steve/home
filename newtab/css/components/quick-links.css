@@ -19,8 +19,6 @@
   border: none;
   border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
   color: var(--color-fg, #2C3E50);
   text-decoration: none;
   font-family: inherit;
@@ -39,6 +37,7 @@
   user-select: none;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
   transition: none;
+  will-change: transform;
 }
 
 .quick-link:focus-visible {

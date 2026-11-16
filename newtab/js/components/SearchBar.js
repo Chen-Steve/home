@@ -131,46 +131,14 @@ class SearchBar {
   }
 
   makeDraggable() {
-    let isDragging = false;
-    let startPointerX = 0;
-    let startPointerY = 0;
-    let startLeft = 0;
-    let startTop = 0;
-
-    const onPointerMove = (e) => {
-      if (!isDragging) return;
-      e.preventDefault();
-      this.setPosition(startLeft + e.clientX - startPointerX, startTop + e.clientY - startPointerY);
-    };
-
-    const onPointerUp = (e) => {
-      if (!isDragging) return;
-      isDragging = false;
-      this.bar.classList.remove('moving');
-      const rect = this.bar.getBoundingClientRect();
-      this.state.position = { x: rect.left, y: rect.top };
-      this.saveState();
-      window.removeEventListener('pointermove', onPointerMove);
-      formatters.releasePointer(this.bar, e);
-    };
-
-    this.bar.addEventListener('pointerdown', (e) => {
-      this.bringToFront();
-      if (e.button !== 2 || e.target.closest('.search-close')) return;
-      isDragging = true;
-      const rect = this.bar.getBoundingClientRect();
-      startPointerX = e.clientX;
-      startPointerY = e.clientY;
-      startLeft = rect.left;
-      startTop = rect.top;
-      this.bar.classList.add('moving');
-      e.preventDefault();
-      formatters.capturePointer(this.bar, e);
-      window.addEventListener('pointermove', onPointerMove);
-      window.addEventListener('pointerup', onPointerUp, { once: true });
-      window.addEventListener('pointercancel', onPointerUp, { once: true });
+    this.bar.addEventListener('pointerdown', () => this.bringToFront());
+    formatters.trackPointerDrag(this.bar, {
+      ignore: '.search-close',
+      onCommit: ({ x, y }) => {
+        this.state.position = { x, y };
+        this.saveState();
+      }
     });
-
     this.bar.addEventListener('contextmenu', (e) => e.preventDefault());
   }
 
@@ -205,7 +173,9 @@ class SearchBar {
 
   handleResize() {
     if (!this.state.position) return;
-    this.state.position = this.setPosition(this.state.position.x, this.state.position.y);
+    const next = this.setPosition(this.state.position.x, this.state.position.y);
+    if (next.x === this.state.position.x && next.y === this.state.position.y) return;
+    this.state.position = next;
     this.saveState();
   }
 }
