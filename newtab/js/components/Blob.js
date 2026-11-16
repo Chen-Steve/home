@@ -42,6 +42,7 @@ class MainBlob {
     const canvas = this.scene.canvas;
 
     this.onPointerDown = (e) => {
+      if (this.isDragging) return;
       const { x, y } = this.getPointerPos(e);
       const cx = this.centerX + this.dragOffsetX;
       const cy = this.centerY + this.dragOffsetY;
@@ -53,6 +54,7 @@ class MainBlob {
         this.isDragging = true;
         this.updateDrag({ x, y });
         formatters.capturePointer(canvas, e);
+        canvas.addEventListener('pointermove', this.onPointerMove);
         document.body.classList.add('dragging-blob');
         e.preventDefault();
       }
@@ -67,12 +69,12 @@ class MainBlob {
     this.onPointerUp = (e) => {
       if (!this.isDragging) return;
       this.isDragging = false;
+      canvas.removeEventListener('pointermove', this.onPointerMove);
       formatters.releasePointer(canvas, e);
       document.body.classList.remove('dragging-blob');
     };
 
     canvas.addEventListener('pointerdown', this.onPointerDown);
-    canvas.addEventListener('pointermove', this.onPointerMove);
     canvas.addEventListener('pointerup', this.onPointerUp);
     canvas.addEventListener('pointercancel', this.onPointerUp);
   }

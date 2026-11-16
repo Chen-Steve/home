@@ -38,6 +38,9 @@ class PostItManager {
     this.moveRafId = null;
     this.keyboardMoveOffset = { x: 0, y: 0 };
     this.activeKeys = new Set();
+    this.contentSync = new Map();
+    this.contentSavers = new Map();
+    this.dirtyContent = new Set();
 
     this.pastelColors = [
       'rgba(255, 224, 178, 0.8)',
@@ -156,9 +159,14 @@ class PostItManager {
   }
 
   getNotePreview(note) {
-    const wrapper = document.createElement('div');
-    wrapper.innerHTML = note.content || '';
-    const text = wrapper.textContent.trim();
+    const text = (note.content || '')
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/\s+/g, ' ')
+      .trim();
     return text || 'Blank note';
   }
 
@@ -210,6 +218,16 @@ class PostItManager {
       }
     });
 
+    window.addEventListener('blur', () => {
+      if (!this.moveRafId) return;
+      this.activeKeys.clear();
+      this.stopMoving();
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && this.dirtyContent.size > 0) this.saveNotes();
+    });
+
     formatters.onResize(() => {
       if (this.adjustNotesPosition()) this.saveNotes();
     });
@@ -217,6 +235,9 @@ class PostItManager {
 
   selectNextNote() {
     if (this.notes.length === 0) return;
+
+    const wasMoving = this.moveRafId != null;
+    if (wasMoving) this.stopMoving();
 
     const currentNoteElement = this.getCurrentNoteElement();
     if (currentNoteElement) {
@@ -231,6 +252,8 @@ class PostItManager {
       nextNote.classList.add('selected');
       nextNote.querySelector('.post-it-content').focus();
     }
+
+    if (wasMoving && this.activeKeys.size > 0) this.startMoving();
   }
 
   createNewNote() {
@@ -299,13 +322,17 @@ class PostItManager {
       this.bringNoteToFront(noteElement);
     });
 
-    const debouncedSave = formatters.debounce(() => this.saveNotes(), 600);
-    contentDiv.addEventListener('input', () => {
+    this.contentSync.set(note.id, () => {
       note.content = contentDiv.innerHTML;
+    });
+    const debouncedSave = formatters.debounce(() => this.saveNotes(), 600);
+    this.contentSavers.set(note.id, debouncedSave);
+    contentDiv.addEventListener('input', () => {
+      this.dirtyContent.add(note.id);
       debouncedSave();
     });
     contentDiv.addEventListener('blur', () => {
-      this.saveNotes();
+      if (this.dirtyContent.has(note.id)) this.saveNotes();
     });
     contentDiv.addEventListener('fontSizeChanged', () => {
       note.fontSize = contentDiv.style.fontSize;
@@ -371,7 +398,18 @@ class PostItManager {
     return { notes: [], deletedNotes: [] };
   }
 
+  syncDirtyContent() {
+    if (this.dirtyContent.size === 0) return;
+    const ids = this.dirtyContent;
+    this.dirtyContent = new Set();
+    ids.forEach((id) => {
+      this.contentSync.get(id)?.();
+      this.contentSavers.get(id)?.cancel();
+    });
+  }
+
   saveNotes() {
+    this.syncDirtyContent();
     formatters.writeStorage(NOTE_STORAGE_KEY, {
       version: NOTE_STORAGE_VERSION,
       notes: this.notes,
@@ -446,6 +484,10 @@ class PostItManager {
 
   moveNoteToTrash(note, noteElement = null) {
     if (!note) return;
+    this.syncDirtyContent();
+    this.contentSync.delete(note.id);
+    this.contentSavers.get(note.id)?.cancel();
+    this.contentSavers.delete(note.id);
     const activeNoteId = this.notes[this.currentNoteIndex]?.id;
     const deletedNote = {
       ...this.normalizeNote(note),
@@ -691,6 +733,8 @@ class PostItManager {
 
   deleteSelectedNote() {
     if (this.currentNoteIndex < 0 || this.notes.length === 0) return;
+    if (this.moveRafId) this.stopMoving();
+    this.activeKeys.clear();
 
     const noteElement = this.getCurrentNoteElement();
     if (!noteElement) return;
@@ -712,13 +756,26 @@ class PostItManager {
   startMoving() {
     if (this.moveRafId) return;
     const noteElement = this.getCurrentNoteElement();
-    if (noteElement) noteElement.classList.add('moving');
+    if (!noteElement) return;
+    noteElement.classList.add('moving');
     this.keyboardMoveOffset = { x: 0, y: 0 };
+    const step = this.moveStep;
     const animate = () => {
-      const el = this.getCurrentNoteElement();
-      if (el && this.activeKeys.size > 0) {
-        this.activeKeys.forEach((key) => this.moveSelectedNote(key));
-        el.style.transform = `translate(${this.keyboardMoveOffset.x}px, ${this.keyboardMoveOffset.y}px)`;
+      if (!noteElement.isConnected) {
+        this.moveRafId = null;
+        this.activeKeys.clear();
+        return;
+      }
+      let dx = 0;
+      let dy = 0;
+      if (this.activeKeys.has('ArrowLeft')) dx -= step;
+      if (this.activeKeys.has('ArrowRight')) dx += step;
+      if (this.activeKeys.has('ArrowUp')) dy -= step;
+      if (this.activeKeys.has('ArrowDown')) dy += step;
+      if (dx !== 0 || dy !== 0) {
+        this.keyboardMoveOffset.x += dx;
+        this.keyboardMoveOffset.y += dy;
+        noteElement.style.transform = `translate(${this.keyboardMoveOffset.x}px, ${this.keyboardMoveOffset.y}px)`;
       }
       this.moveRafId = requestAnimationFrame(animate);
     };
@@ -731,46 +788,35 @@ class PostItManager {
       this.moveRafId = null;
     }
     const noteElement = this.getCurrentNoteElement();
+    const offsetX = this.keyboardMoveOffset.x;
+    const offsetY = this.keyboardMoveOffset.y;
+    this.keyboardMoveOffset = { x: 0, y: 0 };
     if (!noteElement) return;
 
-    const note = this.getNoteFromElement(noteElement);
-    if (note) {
-      note.position = formatters.clampToViewport(
-        note.position.x + this.keyboardMoveOffset.x,
-        note.position.y + this.keyboardMoveOffset.y,
-        note.size.width,
-        note.size.height
-      );
-      noteElement.style.left = `${note.position.x}px`;
-      noteElement.style.top = `${note.position.y}px`;
+    if (offsetX !== 0 || offsetY !== 0) {
+      const note = this.getNoteFromElement(noteElement);
+      if (note) {
+        const next = formatters.clampToViewport(
+          note.position.x + offsetX,
+          note.position.y + offsetY,
+          note.size.width,
+          note.size.height
+        );
+        if (next.x !== note.position.x || next.y !== note.position.y) {
+          note.position = next;
+          noteElement.style.left = `${next.x}px`;
+          noteElement.style.top = `${next.y}px`;
+          this.saveNotes();
+        }
+      }
     }
-    this.keyboardMoveOffset = { x: 0, y: 0 };
     noteElement.style.transform = '';
     noteElement.classList.remove('moving');
-    this.saveNotes();
   }
 
   getCurrentNoteElement() {
     if (this.currentNoteIndex < 0) return null;
     const note = this.notes[this.currentNoteIndex];
     return document.getElementById(`note-${note.id}`);
-  }
-
-  moveSelectedNote(direction) {
-    if (this.currentNoteIndex < 0) return;
-    switch (direction) {
-      case 'ArrowUp':
-        this.keyboardMoveOffset.y -= this.moveStep;
-        break;
-      case 'ArrowDown':
-        this.keyboardMoveOffset.y += this.moveStep;
-        break;
-      case 'ArrowLeft':
-        this.keyboardMoveOffset.x -= this.moveStep;
-        break;
-      case 'ArrowRight':
-        this.keyboardMoveOffset.x += this.moveStep;
-        break;
-    }
   }
 }

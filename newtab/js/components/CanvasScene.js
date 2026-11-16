@@ -11,6 +11,7 @@ class CanvasScene {
     this.viewSize = 0;
     this.mainBlob = new MainBlob(this);
     this.rafId = null;
+    this.delayId = null;
     this.frameInterval = 1000 / CanvasScene.TARGET_FPS;
     this.lastFrameTime = 0;
     this.lastInteractionTime = Date.now();
@@ -102,7 +103,7 @@ class CanvasScene {
   }
 
   start() {
-    if (this.prefersReducedMotion() || this.rafId != null) return;
+    if (this.prefersReducedMotion() || this.rafId != null || this.delayId != null) return;
     this.isIdlePaused = false;
     this.lastInteractionTime = Date.now();
     this.lastFrameTime = 0;
@@ -113,6 +114,10 @@ class CanvasScene {
     if (this.rafId != null) {
       cancelAnimationFrame(this.rafId);
       this.rafId = null;
+    }
+    if (this.delayId != null) {
+      clearTimeout(this.delayId);
+      this.delayId = null;
     }
   }
 
@@ -132,7 +137,16 @@ class CanvasScene {
 
     const interval = this.getEffectiveFrameInterval();
     if (this.lastFrameTime && timestamp - this.lastFrameTime < interval) {
-      this.rafId = requestAnimationFrame(this.boundAnimate);
+      const wait = interval - (timestamp - this.lastFrameTime);
+      if (wait > 4) {
+        this.rafId = null;
+        this.delayId = setTimeout(() => {
+          this.delayId = null;
+          this.rafId = requestAnimationFrame(this.boundAnimate);
+        }, wait);
+      } else {
+        this.rafId = requestAnimationFrame(this.boundAnimate);
+      }
       return;
     }
     this.lastFrameTime = timestamp;

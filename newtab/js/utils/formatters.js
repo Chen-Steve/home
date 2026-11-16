@@ -1,12 +1,22 @@
+const storedJson = new Map();
+
 const formatters = {
   debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
+    let timeout = null;
+    function executedFunction(...args) {
+      const context = this;
       clearTimeout(timeout);
       timeout = setTimeout(() => {
-        func.apply(this, args);
+        timeout = null;
+        func.apply(context, args);
       }, wait);
+    }
+    executedFunction.cancel = () => {
+      clearTimeout(timeout);
+      timeout = null;
     };
+    executedFunction.pending = () => timeout != null;
+    return executedFunction;
   },
 
   clamp(value, min, max) {
@@ -32,6 +42,7 @@ const formatters = {
     try {
       const saved = localStorage.getItem(key);
       if (saved == null) return fallback;
+      storedJson.set(key, saved);
       return JSON.parse(saved);
     } catch (e) {
       console.warn(`Failed to load ${key}:`, e.message);
@@ -41,7 +52,10 @@ const formatters = {
 
   writeStorage(key, value) {
     try {
-      localStorage.setItem(key, JSON.stringify(value));
+      const serialized = JSON.stringify(value);
+      if (storedJson.get(key) === serialized) return;
+      localStorage.setItem(key, serialized);
+      storedJson.set(key, serialized);
     } catch (e) {
       console.warn(`Failed to save ${key}:`, e.message);
     }
